@@ -354,56 +354,71 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 	}
 }
 
+/// SetConfiguration apply configuration
+/// if configuration is diffrent, mark RespondingType as NewParameterValue(0x04)
 func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, error) {
 	original := response.GetConfiguration()
-	isChanged := false
 
 	if cog.CommandType != nil && original.CommandType != cog.CommandType {
 		response.CommandType = *cog.CommandType
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.Speed != nil && original.Speed != cog.Speed {
 		response.Speed = *cog.Speed
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.RecordingCycle != nil && original.RecordingCycle != cog.RecordingCycle {
 		response.RecordingCycle = *cog.RecordingCycle
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.UploadCycle != nil && original.UploadCycle != cog.UploadCycle {
 		response.UploadCycle = *cog.UploadCycle
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.FixedTimeUpload != nil && original.FixedTimeUpload != cog.FixedTimeUpload {
 		response.FixedTimeUpload = *cog.FixedTimeUpload
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.UploadClock != nil && original.UploadClock != cog.UploadClock {
 		response.UploadHour1 = byte(cog.UploadClock.Hour())
 		response.UploadMinute1 = byte(cog.UploadClock.Minute())
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.Model != nil && original.Model != cog.Model {
 		response.Model = *cog.Model
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.DisableType != nil && original.DisableType != cog.DisableType {
 		response.DisableType = *cog.DisableType
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.SystemTime != nil && original.SystemTime != cog.SystemTime {
-		// TODO:
+		response.Year = byte(cog.SystemTime.Year())
+		response.Month = byte(cog.SystemTime.Month())
+		response.Day = byte(cog.SystemTime.Day())
+		response.Hour = byte(cog.SystemTime.Hour())
+		response.Minute = byte(cog.SystemTime.Minute())
+		response.Second = byte(cog.SystemTime.Second())
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.OpenClock != nil && original.OpenClock != cog.OpenClock {
-		// TODO:
+		response.OpenHour = byte(cog.OpenClock.Hour())
+		response.OpenMinute = byte(cog.OpenClock.Minute())
+		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
 	if cog.CloseClock != nil && original.CloseClock != cog.CloseClock {
-		// TODO:
-	}
-
-	if isChanged {
+		response.CloseHour = byte(cog.CloseClock.Hour())
+		response.CloseMinute = byte(cog.CloseClock.Minute())
 		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
