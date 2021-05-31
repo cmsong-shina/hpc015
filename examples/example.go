@@ -13,8 +13,8 @@ import (
 	"github.com/cmsong-shina/hpc015"
 )
 
-// same path as you configured on
-// 192.168.8.1 -> SET NET -> SERVER
+// Same path as you configured on 192.168.8.1(device AP mode) -> SET NET -> SERVER
+// And you MUST set path, not only hostname(from my own experience)
 const (
 	server_host  = ":8888"
 	handler_path = "/cs"

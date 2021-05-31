@@ -29,7 +29,7 @@ type RequestSchema struct {
 	Data   [][]byte      // for request
 	Status *DeviceStatus // for cache request, means information of device
 	Count  uint16        // for cache request, means number of [Data]
-	Result uint8         // for response, do not use this field
+	Result byte          // for response, do not use this field
 }
 
 // NewRequestSchema makes RequestSchema from raw string
@@ -91,7 +91,7 @@ func NewRequestSchema(reqestString string) (*RequestSchema, error) {
 	if ok {
 		n, err := strconv.ParseUint(v, 16, 16)
 		if err == nil {
-			request.Result = uint8(n)
+			request.Result = byte(n)
 		}
 	}
 
@@ -516,7 +516,7 @@ func (response GetSettingResponse) Binary() ([]byte, error) {
 // 0x01 include the time of verifying the system
 // 0x02 include the time of verifying the business hours
 // 0x03 include the time of verifying the system and business hours
-type CommandType uint8
+type CommandType byte
 
 // Operation mode
 type ModelEnum byte
@@ -551,13 +551,15 @@ const (
 //   - 0D Indicates the current remaining capacity of the counter battery, the current remaining capacity is 13%
 //
 type DeviceStatus struct {
-	Version            uint16
-	SerialNumber       uint32
-	Retention1         uint8
-	TransmitterBattery uint8
-	Retention2         uint8
-	ReceiverBattery    uint8
-	WTF                uint32 //not specified in manual
+	Version        uint16
+	SerialNumber   uint32
+	Focus          byte
+	Reserved_1     byte // TODO:
+	TransmitterBAT byte
+	CounterBAT     byte
+	Carge          byte
+	Reserved_2     byte
+	Crc16          uint16 // BigEndian
 }
 
 func NewDeviceStatus(data string) (*DeviceStatus, error) {
@@ -585,7 +587,7 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, retention1, err := readU8(data)
+	data, focus, err := readU8(data)
 	if err != nil {
 		return nil, err
 	}
@@ -593,7 +595,7 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, retention2, err := readU8(data)
+	data, retention1, err := readU8(data)
 	if err != nil {
 		return nil, err
 	}
@@ -601,18 +603,30 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, wtf, err := readU32(data)
+	data, carge, err := readU8(data)
+	if err != nil {
+		return nil, err
+	}
+
+	data, retention2, err := readU8(data)
+	if err != nil {
+		return nil, err
+	}
+
+	data, crc, err := readU16(data)
 	if err != nil {
 		return nil, err
 	}
 
 	status.Version = version
 	status.SerialNumber = serialNumber
-	status.Retention1 = retention1
-	status.TransmitterBattery = transmitterBattery
-	status.Retention2 = retention2
-	status.ReceiverBattery = receiverBattery
-	status.WTF = wtf
+	status.Focus = focus
+	status.TransmitterBAT = transmitterBattery
+	status.Reserved_1 = retention1
+	status.CounterBAT = receiverBattery
+	status.Carge = carge
+	status.Reserved_2 = retention2
+	status.Crc16 = crc
 
 	return status, nil
 }
@@ -643,4 +657,50 @@ func calcCrc16(data []byte) (uint16, error) {
 	crc = (crc % 0x100) | ((crc / 0x100) << 8)
 
 	return crc, nil
+}
+
+type CacheData struct {
+	FieldContent byte
+	Year         byte
+	Month        byte
+	Day          byte
+	Hour         byte
+	Minute       byte
+	Secound      byte
+	Focus        byte
+	DxIn         uint32 // LittleEndian
+	Dxout        uint32 // LittleEndian
+	Crc16        uint16 // BigEndian
+}
+
+func NewCacheData(data []byte) (*CacheData, error) {
+	if len(data) != 17 {
+		return nil, fmt.Errorf("failed to parse CacheData: length must be 17 byte, but came %d byte", len(data))
+	}
+
+	crc, err := calcCrc16(data[:15])
+	if err != nil {
+		return nil, errors.New("failed to verify crc:" + err.Error())
+	}
+
+	if crc != binary.BigEndian.Uint16(data[51:53]) {
+		return nil, errors.New("failed to parse CacheData: incorrect crc")
+	}
+
+	return &CacheData{
+		data[0],
+		data[1],
+		data[2],
+		data[3],
+		data[4],
+		data[5],
+		data[6],
+		data[7],
+		binary.LittleEndian.Uint32(data[8:12]),
+		binary.LittleEndian.Uint32(data[12:16]),
+		crc,
+	}, nil
+}
+
+type CacheResponse struct {
 }
