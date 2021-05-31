@@ -542,6 +542,10 @@ const (
 	RespondingTypeConfirmation      = 0x05 // parameter confirmation, after confirmation and responding, the parameter will be neglected.
 )
 
+// DeviceStatus represent datus of device
+//
+// It contain Version, SerialNumber, Focus, Battery...
+//
 // status=010142AE51520156000D0001E6A7
 //   - 0101 Indicates the device firmware version number, version 1.1
 //   - 42AE5152 indicates the device SN number, with the lower digit first, that is, The device SN number is 5251AE42
@@ -700,6 +704,32 @@ func NewCacheData(data []byte) (*CacheData, error) {
 		binary.LittleEndian.Uint32(data[12:16]),
 		crc,
 	}, nil
+}
+
+// There are more fields, such as Tend and temp,
+// but no description on manual.
+type CacheRequest struct {
+	Status *DeviceStatus
+	Data   []*CacheData
+}
+
+func NewCacheRequest(requestSchema *RequestSchema) (*CacheRequest, error) {
+	var request = new(CacheRequest)
+
+	if int(requestSchema.Count) != len(request.Data) {
+		return nil, errors.New("failed to parse cache request: length of data")
+	}
+
+	request.Status = requestSchema.Status
+	for _, data := range requestSchema.Data {
+		cData, err := NewCacheData(data)
+		if err != nil {
+			return nil, err
+		}
+		request.Data = append(request.Data, cData)
+	}
+
+	return request, nil
 }
 
 type CacheResponse struct {
