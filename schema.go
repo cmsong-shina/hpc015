@@ -304,7 +304,7 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 		int(resp.UploadMinute1),
 		0,
 		0,
-		nil,
+		time.Local,
 	)
 	var SystemTime = time.Date(
 		int(resp.Year),
@@ -314,7 +314,7 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 		int(resp.Minute),
 		int(resp.Second),
 		0,
-		nil,
+		time.Local,
 	)
 
 	var OpenClock = time.Date(
@@ -325,7 +325,7 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 		int(resp.Minute),
 		int(resp.Second),
 		0,
-		nil,
+		time.Local,
 	)
 
 	var CloseClock = time.Date(
@@ -336,7 +336,7 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 		int(resp.Minute),
 		int(resp.Second),
 		0,
-		nil,
+		time.Local,
 	)
 
 	return &Configuration{
