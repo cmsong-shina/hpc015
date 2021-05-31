@@ -244,7 +244,7 @@ type GetSettingResponse struct {
 	Day             byte
 	Hour            byte
 	Minute          byte
-	Secound         byte
+	Second          byte
 	Week            byte
 	OpenHour        byte
 	OpenMinute      byte
@@ -283,7 +283,7 @@ func NewSettingResponse(request *GetSettingRequest, flag uint16) *GetSettingResp
 		Day:             request.Day,
 		Hour:            request.Hour,
 		Minute:          request.Minute,
-		Secound:         request.Secound,
+		Second:          request.Secound,
 		Week:            0,
 		OpenHour:        request.OpenHour,
 		OpenMinute:      request.OpenMinute,
@@ -312,7 +312,7 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 		int(resp.Day),
 		int(resp.Hour),
 		int(resp.Minute),
-		int(resp.Secound),
+		int(resp.Second),
 		0,
 		nil,
 	)
@@ -323,7 +323,7 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 		int(resp.Day),
 		int(resp.Hour),
 		int(resp.Minute),
-		int(resp.Secound),
+		int(resp.Second),
 		0,
 		nil,
 	)
@@ -334,7 +334,7 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 		int(resp.Day),
 		int(resp.Hour),
 		int(resp.Minute),
-		int(resp.Secound),
+		int(resp.Second),
 		0,
 		nil,
 	)
@@ -445,7 +445,7 @@ func (request GetSettingResponse) Binary() []byte {
 	binary.Write(buf, binary.LittleEndian, request.Day)
 	binary.Write(buf, binary.LittleEndian, request.Hour)
 	binary.Write(buf, binary.LittleEndian, request.Minute)
-	binary.Write(buf, binary.LittleEndian, request.Secound)
+	binary.Write(buf, binary.LittleEndian, request.Second)
 	binary.Write(buf, binary.LittleEndian, request.Week)
 	binary.Write(buf, binary.LittleEndian, request.OpenHour)
 	binary.Write(buf, binary.LittleEndian, request.OpenMinute)

@@ -321,7 +321,7 @@ func TestGetSettingResponse_toBindary(t *testing.T) {
 				Day:             tt.fields.Day,
 				Hour:            tt.fields.Hour,
 				Minute:          tt.fields.Minute,
-				Secound:         tt.fields.Secound,
+				Second:          tt.fields.Secound,
 				Week:            tt.fields.Week,
 				OpenHour:        tt.fields.OpenHour,
 				OpenMinute:      tt.fields.OpenMinute,
