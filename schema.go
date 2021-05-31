@@ -196,7 +196,7 @@ func CalcCrc16(data []byte) (uint16, error) {
 	var crc uint16 = 0xFFFF
 
 	if len(data) > 78 {
-		return 0, errors.New("leng of data must less than 78")
+		return 0, errors.New("length of data must less than 78")
 	}
 
 	for j := 0; j < len(data); j++ {
@@ -210,9 +210,9 @@ func CalcCrc16(data []byte) (uint16, error) {
 				crc >>= 1
 			}
 		}
-		data[j] = uint8(crc % 0x100)
-		data[j+1] = uint8(crc / 0x100)
 	}
+
+	crc = (crc % 0x100) | ((crc / 0x100) << 8)
 
 	return crc, nil
 }
