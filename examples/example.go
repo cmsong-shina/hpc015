@@ -56,19 +56,23 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 	switch requestSchema.Cmd {
 	case "getsetting":
 		// getsetting has one data field
-		settingRequest, _ := hpc015.NewSettingRequest(requestSchema.Data[0])
+		setReq, _ := hpc015.NewSettingRequest(requestSchema.Data[0])
 
 		// new response based on request
-		settingResponse := hpc015.NewSettingResponse(settingRequest, requestSchema.Flag)
+		setResp := setReq.Response(requestSchema.Flag)
 
-		// get current configuration
-		_ = settingResponse.GetConfiguration()
+		// (optional) get current configuration
+		_ = setResp.GetConfiguration()
 
-		// apply new configuration
-		settingResponse.SetConfiguration(obtainCog())
+		// (optional) apply new configuration
+		//
+		// DO NOT change configuration every time.
+		// When you modify configuration, device send request to confirmation,
+		// and if you change system time(for example) again, device send confirmation again. It is loop.
+		//   setResp.SetConfiguration(obtainCog())
 
 		// response
-		bin, err := settingResponse.Binary()
+		bin, err := setResp.Binary()
 		if err != nil {
 			log.Println("failed to convert binary:", err.Error())
 			return
@@ -79,6 +83,8 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 		return
 
 	case "cache":
+		// device will send cache request when they got respose about getsetting correctly
+
 		// we can use Status within cache command
 		_ = requestSchema.Status
 

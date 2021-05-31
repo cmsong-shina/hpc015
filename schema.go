@@ -15,9 +15,14 @@ import (
 	"time"
 )
 
-// There are two kind of command, which are:
-//   - `getsetting`: To obtain setting value.
-//   - `cache`: To uplaod cache data.
+// RequestSchema basic form of request
+//
+// There are two kind of commands, which are:
+//   - `getsetting`: To obtain setting value
+//   - `cache`: To upload cache data
+//
+// Returned value is still not useful,
+// covert to getsetting struct or cache struct depend on RequestSchema.Cmd
 type RequestSchema struct {
 	Cmd    string        // for request
 	Flag   uint16        // for request, means timestamp
@@ -27,10 +32,9 @@ type RequestSchema struct {
 	Result uint8         // for response, do not use this field
 }
 
-// NewRequestSchema makes RequestSchema from raw string.
+// NewRequestSchema makes RequestSchema from raw string
 //
-// Returned value is still not useful,
-// covert to getsetting struct or cache struct depend on RequestSchema.Cmd
+// it can be panic if [reqestString] does not contain any [&]
 func NewRequestSchema(reqestString string) (*RequestSchema, error) {
 	fields := strings.Split(reqestString, "&")
 
@@ -151,6 +155,17 @@ func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 		return nil, fmt.Errorf("failed to parse GetSettingRequest: length must be 53 byte, but came %d byte", len(data))
 	}
 
+	crc, err := calcCrc16(data[:51])
+	if err != nil {
+		return nil, errors.New("failed to verify crc:" + err.Error())
+	}
+
+	incomeCrc := binary.BigEndian.Uint16(data[51:53])
+
+	if crc != incomeCrc {
+		return nil, errors.New("failed to verify crc: incorrect crc")
+	}
+
 	getSetting := &GetSettingRequest{
 		SerialNumber:    data[0:4],
 		CommandType:     data[4],
@@ -183,38 +198,53 @@ func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 		CloseHour:       data[49],
 		CloseMinute:     data[50],
 		// TODO: ensure endian at here
-		Crc16: binary.LittleEndian.Uint16(data[51:53]),
+		Crc16: crc,
 	}
 
 	return getSetting, nil
 }
 
-// CalcCrc16 verifies all byte calculation before crc fields(excluding “result=”)
-//   - length of `data` must not logner than 78.
-//   - 1 byte high 8, 1 byte low 8
-func CalcCrc16(data []byte) (uint16, error) {
-	var crc uint16 = 0xFFFF
-
-	if len(data) > 78 {
-		return 0, errors.New("length of data must less than 78")
+// Response generate response about request
+//   - need to provider `flag`
+//   - see also: `GetSettingResponse`
+func (request GetSettingRequest) Response(flag uint16) *GetSettingResponse {
+	return &GetSettingResponse{
+		RespondingType:  RespondingTypeConfirmation,
+		Flag:            ((flag & 0xFF) << 8) | ((flag & 0xFF00) >> 8),
+		SerialNumber:    []byte{0, 0, 0, 0},
+		CommandType:     request.CommandType,
+		Speed:           request.Speed,
+		RecordingCycle:  request.RecordingCycle,
+		UploadCycle:     request.UploadCycle,
+		FixedTimeUpload: request.FixedTimeUpload,
+		UploadHour1:     request.UploadHour1,
+		UploadMinute1:   request.UploadMinute1,
+		UploadHour2:     request.UploadHour2,
+		UploadMinute2:   request.UploadMinute2,
+		UploadHour3:     request.UploadHour3,
+		UploadMinute3:   request.UploadMinute3,
+		UploadHour4:     request.UploadHour4,
+		UploadMinute4:   request.UploadMinute4,
+		Model:           request.Model,
+		DisableType:     request.DisableType,
+		MacAddress1:     []byte{0, 0, 0, 0, 0, 0, 0},
+		MacAddress2:     []byte{0, 0, 0, 0, 0, 0, 0},
+		MacAddress3:     []byte{0, 0, 0, 0, 0, 0, 0},
+		Year:            request.Year,
+		Month:           request.Month,
+		Day:             request.Day,
+		Hour:            request.Hour,
+		Minute:          request.Minute,
+		Second:          request.Secound,
+		Week:            0,
+		OpenHour:        request.OpenHour,
+		OpenMinute:      request.OpenMinute,
+		CloseHour:       request.CloseHour,
+		CloseMinute:     request.CloseMinute,
+		Reserved1:       0,
+		Reserved2:       0,
+		Crc16:           request.Crc16,
 	}
-
-	for j := 0; j < len(data); j++ {
-		crc ^= uint16(data[j])
-
-		for i := 0; i < 8; i++ {
-			if (crc & 0x01) == 1 {
-				crc >>= 1
-				crc ^= 0xA001
-			} else {
-				crc >>= 1
-			}
-		}
-	}
-
-	crc = (crc % 0x100) | ((crc / 0x100) << 8)
-
-	return crc, nil
 }
 
 type GetSettingResponse struct {
@@ -255,10 +285,14 @@ type GetSettingResponse struct {
 	Crc16           uint16
 }
 
+// Deprecated: NewSettingResponse
+//
+// use instead
+//  GetSettingRequest.Response(flag uint16)
 func NewSettingResponse(request *GetSettingRequest, flag uint16) *GetSettingResponse {
 	return &GetSettingResponse{
 		RespondingType:  RespondingTypeConfirmation,
-		Flag:            flag,
+		Flag:            ((flag & 0xFF) << 8) | ((flag & 0xFF00) >> 8),
 		SerialNumber:    []byte{0, 0, 0, 0},
 		CommandType:     request.CommandType,
 		Speed:           request.Speed,
@@ -354,8 +388,9 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 	}
 }
 
-/// SetConfiguration apply configuration
-/// if configuration is diffrent, mark RespondingType as NewParameterValue(0x04)
+// SetConfiguration apply configuration
+// If configuration is diffrent, mark RespondingType as NewParameterValue(0x04)
+// It still not applid crc
 func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, error) {
 	original := response.GetConfiguration()
 
@@ -401,7 +436,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	}
 
 	if cog.SystemTime != nil && original.SystemTime != cog.SystemTime {
-		response.Year = byte(cog.SystemTime.Year())
+		response.Year = byte(cog.SystemTime.Year() % 2000)
 		response.Month = byte(cog.SystemTime.Month())
 		response.Day = byte(cog.SystemTime.Day())
 		response.Hour = byte(cog.SystemTime.Hour())
@@ -425,56 +460,54 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	return false, nil
 }
 
-func (request GetSettingResponse) Binary() ([]byte, error) {
-	// buf := make([]byte, 0, 58)
-	// buf[0] = byte(request.RespondingType)
-	// binary.LittleEndian.PutUint16(buf[1:3], request.Flag)
-
+// Binary generate response represneted by binary
+//
+// Response encode to device with hexencode and result tag.
+// For example:
+//   resp := fmt.Sprintf("result=%X", bin)
+func (response GetSettingResponse) Binary() ([]byte, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, 58))
-	// buf.WriteByte(byte(request.RespondingType))
-	// buf.WriteRune(rune(request.Flag))
-
-	binary.Write(buf, binary.LittleEndian, request.RespondingType)
-	binary.Write(buf, binary.LittleEndian, request.Flag)
-	binary.Write(buf, binary.LittleEndian, request.SerialNumber)
-	binary.Write(buf, binary.LittleEndian, request.CommandType)
-	binary.Write(buf, binary.LittleEndian, request.Speed)
-	binary.Write(buf, binary.LittleEndian, request.RecordingCycle)
-	binary.Write(buf, binary.LittleEndian, request.UploadCycle)
-	binary.Write(buf, binary.LittleEndian, request.FixedTimeUpload)
-	binary.Write(buf, binary.LittleEndian, request.UploadHour1)
-	binary.Write(buf, binary.LittleEndian, request.UploadMinute1)
-	binary.Write(buf, binary.LittleEndian, request.UploadHour2)
-	binary.Write(buf, binary.LittleEndian, request.UploadMinute2)
-	binary.Write(buf, binary.LittleEndian, request.UploadHour3)
-	binary.Write(buf, binary.LittleEndian, request.UploadMinute3)
-	binary.Write(buf, binary.LittleEndian, request.UploadHour4)
-	binary.Write(buf, binary.LittleEndian, request.UploadMinute4)
-	binary.Write(buf, binary.LittleEndian, request.Model)
-	binary.Write(buf, binary.LittleEndian, request.DisableType)
-	binary.Write(buf, binary.LittleEndian, request.MacAddress1)
-	binary.Write(buf, binary.LittleEndian, request.MacAddress2)
-	binary.Write(buf, binary.LittleEndian, request.MacAddress3)
-	binary.Write(buf, binary.LittleEndian, request.Year)
-	binary.Write(buf, binary.LittleEndian, request.Month)
-	binary.Write(buf, binary.LittleEndian, request.Day)
-	binary.Write(buf, binary.LittleEndian, request.Hour)
-	binary.Write(buf, binary.LittleEndian, request.Minute)
-	binary.Write(buf, binary.LittleEndian, request.Second)
-	binary.Write(buf, binary.LittleEndian, request.Week)
-	binary.Write(buf, binary.LittleEndian, request.OpenHour)
-	binary.Write(buf, binary.LittleEndian, request.OpenMinute)
-	binary.Write(buf, binary.LittleEndian, request.CloseHour)
-	binary.Write(buf, binary.LittleEndian, request.CloseMinute)
-	binary.Write(buf, binary.LittleEndian, request.Reserved1)
-	binary.Write(buf, binary.LittleEndian, request.Reserved2)
+	binary.Write(buf, binary.BigEndian, response.RespondingType)
+	binary.Write(buf, binary.BigEndian, response.Flag)
+	binary.Write(buf, binary.BigEndian, response.SerialNumber)
+	binary.Write(buf, binary.BigEndian, response.CommandType)
+	binary.Write(buf, binary.BigEndian, response.Speed)
+	binary.Write(buf, binary.BigEndian, response.RecordingCycle)
+	binary.Write(buf, binary.BigEndian, response.UploadCycle)
+	binary.Write(buf, binary.BigEndian, response.FixedTimeUpload)
+	binary.Write(buf, binary.BigEndian, response.UploadHour1)
+	binary.Write(buf, binary.BigEndian, response.UploadMinute1)
+	binary.Write(buf, binary.BigEndian, response.UploadHour2)
+	binary.Write(buf, binary.BigEndian, response.UploadMinute2)
+	binary.Write(buf, binary.BigEndian, response.UploadHour3)
+	binary.Write(buf, binary.BigEndian, response.UploadMinute3)
+	binary.Write(buf, binary.BigEndian, response.UploadHour4)
+	binary.Write(buf, binary.BigEndian, response.UploadMinute4)
+	binary.Write(buf, binary.BigEndian, response.Model)
+	binary.Write(buf, binary.BigEndian, response.DisableType)
+	binary.Write(buf, binary.BigEndian, response.MacAddress1)
+	binary.Write(buf, binary.BigEndian, response.MacAddress2)
+	binary.Write(buf, binary.BigEndian, response.MacAddress3)
+	binary.Write(buf, binary.BigEndian, response.Year)
+	binary.Write(buf, binary.BigEndian, response.Month)
+	binary.Write(buf, binary.BigEndian, response.Day)
+	binary.Write(buf, binary.BigEndian, response.Hour)
+	binary.Write(buf, binary.BigEndian, response.Minute)
+	binary.Write(buf, binary.BigEndian, response.Second)
+	binary.Write(buf, binary.BigEndian, response.Week)
+	binary.Write(buf, binary.BigEndian, response.OpenHour)
+	binary.Write(buf, binary.BigEndian, response.OpenMinute)
+	binary.Write(buf, binary.BigEndian, response.CloseHour)
+	binary.Write(buf, binary.BigEndian, response.CloseMinute)
+	binary.Write(buf, binary.BigEndian, response.Reserved1)
+	binary.Write(buf, binary.BigEndian, response.Reserved2)
 
 	// eval crc
-	crc, err := CalcCrc16(buf.Bytes())
+	crc, err := calcCrc16(buf.Bytes())
 	if err != nil {
 		return nil, err
 	}
-	binary.Write(buf, binary.LittleEndian, crc)
+	binary.Write(buf, binary.BigEndian, crc)
 
 	return buf.Bytes(), err
 }
@@ -582,4 +615,32 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 	status.WTF = wtf
 
 	return status, nil
+}
+
+// calcCrc16 verifies all byte calculation before crc fields(excluding “result=”)
+//   - length of `data` must not logner than 78.
+//   - 1 byte high 8, 1 byte low 8
+func calcCrc16(data []byte) (uint16, error) {
+	var crc uint16 = 0xFFFF
+
+	if len(data) > 78 {
+		return 0, errors.New("length of data must less than 78")
+	}
+
+	for j := 0; j < len(data); j++ {
+		crc ^= uint16(data[j])
+
+		for i := 0; i < 8; i++ {
+			if (crc & 0x01) == 1 {
+				crc >>= 1
+				crc ^= 0xA001
+			} else {
+				crc >>= 1
+			}
+		}
+	}
+
+	crc = (crc % 0x100) | ((crc / 0x100) << 8)
+
+	return crc, nil
 }

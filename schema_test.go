@@ -407,7 +407,7 @@ func TestCalcCrc16(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		res, err := CalcCrc16(tc.input)
+		res, err := calcCrc16(tc.input)
 		if err != nil {
 			t.FailNow()
 		}
