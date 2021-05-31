@@ -331,7 +331,10 @@ func TestGetSettingResponse_toBindary(t *testing.T) {
 				Reserved2:       tt.fields.Reserved2,
 				Crc16:           tt.fields.Crc16,
 			}
-			if got := request.Binary(); !reflect.DeepEqual(got, tt.want) {
+			if got, err := request.Binary(); !reflect.DeepEqual(got, tt.want) {
+				if err != nil {
+					t.Errorf("GetSettingResponse.toBindary() = %v, want %v", got, tt.want)
+				}
 				t.Errorf("GetSettingResponse.toBindary() = %v, want %v", got, tt.want)
 			}
 		})

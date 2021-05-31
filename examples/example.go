@@ -4,9 +4,11 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/cmsong-shina/hpc015"
 )
@@ -14,12 +16,14 @@ import (
 // same path as you configured on
 // 192.168.8.1 -> SET NET -> SERVER
 const (
-	port = ":8888"
-	path = "/cs"
+	server_host  = ":8888"
+	handler_path = "/cs"
 )
 
 // set your own configuration
 func obtainCog() hpc015.Configuration {
+	now := time.Now()
+
 	return hpc015.Configuration{
 		// CommandType
 		// Speed
@@ -29,7 +33,7 @@ func obtainCog() hpc015.Configuration {
 		// UploadClock
 		// Model
 		// DisableType
-		// SystemTime
+		SystemTime: &now,
 		// OpenClock
 		// CloseClock
 	}
@@ -37,8 +41,9 @@ func obtainCog() hpc015.Configuration {
 
 // run http server
 func main() {
-	http.HandleFunc(path, hpc015Handler)
-	log.Fatal(http.ListenAndServe(port, nil))
+	log.Println("server is running on:", server_host+handler_path)
+	http.HandleFunc(handler_path, hpc015Handler)
+	log.Fatal(http.ListenAndServe(server_host, nil))
 }
 
 // handler
@@ -46,6 +51,7 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 	bin, _ := ioutil.ReadAll(req.Body)
 
 	requestSchema, _ := hpc015.NewRequestSchema(string(bin))
+	log.Println("> request from:", req.RemoteAddr, string(bin))
 
 	switch requestSchema.Cmd {
 	case "getsetting":
@@ -62,7 +68,14 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 		settingResponse.SetConfiguration(obtainCog())
 
 		// response
-		w.Write(settingResponse.Binary())
+		bin, err := settingResponse.Binary()
+		if err != nil {
+			log.Println("failed to convert binary:", err.Error())
+			return
+		}
+		resp := fmt.Sprintf("result=%X", bin)
+		log.Println("< response with:", resp)
+		w.Write([]byte(resp))
 		return
 
 	case "cache":
