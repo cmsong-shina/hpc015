@@ -13,7 +13,10 @@ import (
 
 // same path as you configured on
 // 192.168.8.1 -> SET NET -> SERVER
-const server = "/hpc015"
+const (
+	port = ":8888"
+	path = "/cs"
+)
 
 // set your own configuration
 func obtainCog() hpc015.Configuration {
@@ -34,8 +37,8 @@ func obtainCog() hpc015.Configuration {
 
 // run http server
 func main() {
-	http.HandleFunc(server, hpc015Handler)
-	log.Fatal(http.ListenAndServe(":8888", nil))
+	http.HandleFunc(path, hpc015Handler)
+	log.Fatal(http.ListenAndServe(port, nil))
 }
 
 // handler
