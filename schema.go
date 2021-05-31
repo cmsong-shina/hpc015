@@ -189,10 +189,10 @@ func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 	return getSetting, nil
 }
 
-// CRC16 verifies all byte calculation before crc fields(excluding “result=”)
-// 1 BYTE Hi8
-// 1 BYTE Low8
-func (request GetSettingRequest) calcCrc16(data []byte) (uint16, error) {
+// CalcCrc16 verifies all byte calculation before crc fields(excluding “result=”)
+//   - length of `data` must not logner than 78.
+//   - 1 byte high 8, 1 byte low 8
+func CalcCrc16(data []byte) (uint16, error) {
 	var crc uint16 = 0xFFFF
 
 	if len(data) > 78 {
@@ -425,7 +425,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	return false, nil
 }
 
-func (request GetSettingResponse) Binary() []byte {
+func (request GetSettingResponse) Binary() ([]byte, error) {
 	// buf := make([]byte, 0, 58)
 	// buf[0] = byte(request.RespondingType)
 	// binary.LittleEndian.PutUint16(buf[1:3], request.Flag)
@@ -468,9 +468,15 @@ func (request GetSettingResponse) Binary() []byte {
 	binary.Write(buf, binary.LittleEndian, request.CloseMinute)
 	binary.Write(buf, binary.LittleEndian, request.Reserved1)
 	binary.Write(buf, binary.LittleEndian, request.Reserved2)
-	binary.Write(buf, binary.LittleEndian, request.Crc16)
 
-	return buf.Bytes()
+	// eval crc
+	crc, err := CalcCrc16(buf.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	binary.Write(buf, binary.LittleEndian, crc)
+
+	return buf.Bytes(), err
 }
 
 // 0x00 exclude the verification hours and business hours
