@@ -115,3 +115,37 @@ var answerType = []string{
 func (m AnswerType) String() string {
 	return answerType[m]
 }
+
+type Focus byte
+
+const (
+	Focused Focus = iota
+	FocusOut
+)
+
+var focusString = []string{
+	"Focused",
+	"FocusOut",
+}
+
+func (m Focus) String() string {
+	return focusString[m]
+}
+
+type Charge byte
+
+const (
+	NotCharged Charge = iota
+	_
+	BeingCharged
+)
+
+var cargeString = []string{
+	"NotCharged",
+	"",
+	"BeingCharged",
+}
+
+func (m Charge) String() string {
+	return cargeString[m]
+}
