@@ -48,14 +48,23 @@ func main() {
 func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 	bin, _ := ioutil.ReadAll(req.Body)
 
-	requestSchema, _ := hpc015.NewRequestSchema(string(bin))
 	fmt.Println()
+	requestSchema, err := hpc015.NewRequestSchema(string(bin))
+	if err != nil {
+		log.Println("! failed to parse RequestSchema:", err.Error())
+		return
+	}
+
 	log.Println("> request from:", req.RemoteAddr, string(bin))
 
 	switch requestSchema.Cmd {
 	case "getsetting":
 		// getsetting has one data field
-		setReq, _ := hpc015.NewSettingRequest(requestSchema.Data[0])
+		setReq, err := hpc015.NewSettingRequest(requestSchema.Data[0])
+		if err != nil {
+			log.Println("! failed to parse SettingRequest:", err.Error())
+			return
+		}
 
 		// new response based on request
 		setResp := setReq.Response(requestSchema.Flag)
@@ -86,7 +95,7 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 
 		cacheReq, err := hpc015.NewCacheRequest(requestSchema)
 		if err != nil {
-			log.Println("! failed to convert binary:", err.Error())
+			log.Println("! failed to parse CacheRequest:", err.Error())
 			return
 		}
 

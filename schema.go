@@ -26,17 +26,14 @@ import (
 //
 // See also
 type RequestSchema struct {
-	Cmd    string   // for request
-	Flag   uint16   // for request, means timestamp
-	Data   [][]byte // for request
+	Cmd    string   // for any request
+	Flag   uint16   // for any request, means timestamp
+	Data   [][]byte // for any request
 	Status string   // for cache request, means information of device
 	Count  uint16   // for cache request, means number of [Data]
-	Result byte     // for response, do not use this field
 }
 
-// NewRequestSchema makes RequestSchema from raw string
-//
-// it can be panic if [reqestString] does not contain any [&]
+// NewRequestSchema makes RequestSchema from raw request string
 func NewRequestSchema(reqestString string) (*RequestSchema, error) {
 	fields := strings.Split(reqestString, "&")
 
@@ -50,57 +47,52 @@ func NewRequestSchema(reqestString string) (*RequestSchema, error) {
 		Data: make([][]byte, 0, 1),
 	}
 
-	v, ok := fieldsTable["cmd"]
-	if ok {
-		request.Cmd = v
-	}
+	// parse message
+	for _, field := range fields {
+		var k, v string
 
-	v, ok = fieldsTable["status"]
-	if ok {
-		// status, err := hex.DecodeString(v)
-		// if err != nil {
-		// 	return nil, fmt.Errorf("failed to decode status: %s", err.Error())
-		// }
-		// request.Status = status
-		request.Status = v
-	}
-
-	v, ok = fieldsTable["flag"]
-	if ok {
-		n, err := strconv.ParseUint(v, 16, 16)
-		if err == nil {
-			request.Flag = uint16(n)
-		}
-	}
-
-	v, ok = fieldsTable["data"]
-	if ok {
-		for _, field := range fields {
-			splitedField := strings.Split(field, "=")
-			if splitedField[0] == "data" {
-				data, err := hex.DecodeString(v)
-				if err != nil {
-					return nil, fmt.Errorf("failed to decode data: %s", err.Error())
-				}
-				request.Data = append(request.Data, data)
+		{
+			s := strings.Split(field, "=")
+			if len(s) != 2 {
+				continue
 			}
+			k = s[0]
+			v = s[1]
+		}
+
+		switch k {
+		case "cmd":
+			request.Cmd = v
+
+		case "status":
+			request.Status = v
+
+		case "flag":
+			flag, err := strconv.ParseUint(v, 16, 16)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode flag: %s", err.Error())
+			}
+			request.Flag = uint16(flag)
+
+		case "data":
+			data, err := hex.DecodeString(v)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode data: %s", err.Error())
+			}
+			request.Data = append(request.Data, data)
+
+		case "count":
+			count, err := strconv.ParseUint(v, 16, 16)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode count: %s", err.Error())
+			}
+			request.Count = uint16(count)
 		}
 	}
 
-	v, ok = fieldsTable["count"]
-	if ok {
-		n, err := strconv.ParseUint(v, 16, 16)
-		if err == nil {
-			request.Count = uint16(n)
-		}
-	}
-
-	v, ok = fieldsTable["result"]
-	if ok {
-		n, err := strconv.ParseUint(v, 16, 16)
-		if err == nil {
-			request.Result = byte(n)
-		}
+	// validate schema, [Cmd, Data] can not be empty
+	if request.Cmd == "" || len(request.Data) == 0 {
+		return nil, errors.New("Cmd/Data field can not be empty")
 	}
 
 	return request, nil
@@ -165,7 +157,7 @@ type GetSettingRequest struct {
 	Day             byte
 	Hour            byte
 	Minute          byte
-	Secound         byte
+	Second          byte
 	Week            byte
 	OpenHour        byte
 	OpenMinute      byte
@@ -174,9 +166,13 @@ type GetSettingRequest struct {
 	Crc16           uint16
 }
 
+// NewSettingRequest makes new GetSettingRequest instance.
+//
+//   - Length of [data] must be 53
+//   - This function vaild CRC16
 func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 	if len(data) != 53 {
-		return nil, fmt.Errorf("failed to parse GetSettingRequest: length must be 53 byte, but came %d byte", len(data))
+		return nil, fmt.Errorf("length must be 53 byte, but came %d byte", len(data))
 	}
 
 	crc, err := calcCrc16(data[:51])
@@ -215,7 +211,7 @@ func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 		Day:             data[42],
 		Hour:            data[43],
 		Minute:          data[44],
-		Secound:         data[45],
+		Second:          data[45],
 		Week:            data[46],
 		OpenHour:        data[47],
 		OpenMinute:      data[48],
@@ -259,7 +255,7 @@ func (request GetSettingRequest) Response(flag uint16) *GetSettingResponse {
 		Day:             request.Day,
 		Hour:            request.Hour,
 		Minute:          request.Minute,
-		Second:          request.Secound,
+		Second:          request.Second,
 		Week:            0,
 		OpenHour:        request.OpenHour,
 		OpenMinute:      request.OpenMinute,
@@ -341,7 +337,7 @@ func NewSettingResponse(request *GetSettingRequest, flag uint16) *GetSettingResp
 		Day:             request.Day,
 		Hour:            request.Hour,
 		Minute:          request.Minute,
-		Second:          request.Secound,
+		Second:          request.Second,
 		Week:            0,
 		OpenHour:        request.OpenHour,
 		OpenMinute:      request.OpenMinute,
