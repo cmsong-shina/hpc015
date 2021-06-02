@@ -324,7 +324,7 @@ func TestNewDeviceStatus(t *testing.T) {
 				TransmitterBAT: 0x56,
 				Reserved_1:     0x00,
 				CounterBAT:     0x0D,
-				Carge:          0x00,
+				Charge:         0x00,
 				Reserved_2:     0x01,
 				Crc16:          0xE6A7,
 			},

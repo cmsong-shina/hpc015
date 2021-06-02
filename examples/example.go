@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/cmsong-shina/hpc015"
+	"github.com/kr/pretty"
 )
 
 // Same path as you configured on 192.168.8.1(device AP mode) -> SET NET -> SERVER
@@ -200,6 +201,8 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 			log.Println("! failed to parse CacheRequest:", err.Error())
 			return
 		}
+
+		pretty.Println("cache request:", cacheReq)
 
 		//
 		cacheResp := cacheReq.Response(hpc015.OK, requestSchema.Flag, obtainCog())

@@ -560,11 +560,11 @@ func (response GetSettingResponse) Binary() ([]byte, error) {
 type DeviceStatus struct {
 	Version        uint16
 	SerialNumber   uint32
-	Focus          byte
+	Focus          Focus
 	Reserved_1     byte // TODO:
 	TransmitterBAT byte
 	CounterBAT     byte
-	Carge          byte
+	Charge         Charge
 	Reserved_2     byte
 	Crc16          uint16 // BigEndian
 }
@@ -600,7 +600,7 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, carge, err := readU8(data)
+	data, charge, err := readU8(data)
 	if err != nil {
 		return nil, err
 	}
@@ -617,11 +617,11 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 
 	status.Version = version
 	status.SerialNumber = serialNumber
-	status.Focus = focus
+	status.Focus = Focus(focus)
 	status.TransmitterBAT = transmitterBattery
 	status.Reserved_1 = retention1
 	status.CounterBAT = receiverBattery
-	status.Carge = carge
+	status.Charge = Charge(charge)
 	status.Reserved_2 = retention2
 	status.Crc16 = crc
 
@@ -658,17 +658,16 @@ func calcCrc16(data []byte) (uint16, error) {
 }
 
 type CacheData struct {
-	FieldContent byte
-	Year         byte
-	Month        byte
-	Day          byte
-	Hour         byte
-	Minute       byte
-	Secound      byte
-	Focus        byte
-	DxIn         uint32 // LittleEndian
-	Dxout        uint32 // LittleEndian
-	Crc16        uint16 // BigEndian
+	Year    byte
+	Month   byte
+	Day     byte
+	Hour    byte
+	Minute  byte
+	Secound byte
+	Focus   Focus
+	DxIn    uint32 // LittleEndian
+	Dxout   uint32 // LittleEndian
+	Crc16   uint16 // BigEndian
 }
 
 func NewCacheData(data []byte) (*CacheData, error) {
@@ -692,10 +691,9 @@ func NewCacheData(data []byte) (*CacheData, error) {
 		data[3],
 		data[4],
 		data[5],
-		data[6],
-		data[7],
-		binary.LittleEndian.Uint32(data[8:12]),
-		binary.LittleEndian.Uint32(data[12:16]),
+		Focus(data[6]),
+		binary.LittleEndian.Uint32(data[7:11]),
+		binary.LittleEndian.Uint32(data[11:15]),
 		crc,
 	}, nil
 }
@@ -793,36 +791,4 @@ func (response *CacheResponse) Binary() ([]byte, error) {
 	binary.Write(buf, binary.BigEndian, crc)
 
 	return buf.Bytes(), err
-
-}
-
-type BusinessClock struct {
-	OpenClock  Clock
-	CloseClock Clock
-}
-
-func NewBusinessClock(openHour, openMinute, closeHour, closeMinute byte) BusinessClock {
-	return BusinessClock{
-		NewClock(openHour, openMinute),
-		NewClock(closeHour, closeMinute),
-	}
-}
-
-type Clock struct {
-	Hour    byte
-	Minute  byte
-	Secound byte
-}
-
-func NewClock(hour byte, minute byte, secound ...byte) Clock {
-	if secound == nil {
-		secound[0] = 0
-	}
-
-	return Clock{
-		Hour:    hour,
-		Minute:  minute,
-		Secound: secound[0],
-	}
-
 }
