@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+var (
+	enableDebugMessage = true
+)
+
 // RequestSchema basic form of request, it just hold bunch of raw data.
 //
 // Returned value is still not useful,
@@ -24,10 +28,10 @@ import (
 //   - `getsetting`: To obtain setting value
 //   - `cache`: To upload cache data
 //
-// See also
+// `Flag` always treated as BigEndian
 type RequestSchema struct {
 	Cmd    string   // for any request
-	Flag   uint16   // for any request, means timestamp
+	Flag   uint16   // for any request, means timestamp, bigendian
 	Data   [][]byte // for any request
 	Status string   // for cache request, means information of device
 	Count  uint16   // for cache request, means number of [Data]
@@ -68,11 +72,12 @@ func NewRequestSchema(reqestString string) (*RequestSchema, error) {
 			request.Status = v
 
 		case "flag":
-			flag, err := strconv.ParseUint(v, 16, 16)
+			b, err := hex.DecodeString(v)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode flag: %s", err.Error())
 			}
-			request.Flag = uint16(flag)
+			flag := binary.BigEndian.Uint16(b)
+			request.Flag = flag
 
 		case "data":
 			data, err := hex.DecodeString(v)
@@ -107,22 +112,14 @@ func NewRequestSchema(reqestString string) (*RequestSchema, error) {
 // Uploading meas within business hour, specify the uploading time period via WIFI.
 //
 type Configuration struct {
-	CommandType *byte
-	Speed       *byte
-
-	// 1 to 225 min, 0 is real-time
-	RecordingCycle *byte
-
-	// 1 to 225 min, 0 is real-time
-	UploadCycle *byte
-
-	// Specify the uploading time, refered as `EnableFixedTimeUpload` in manual.
-	//  0 not used
-	//  1-4 use fixed point time, use from 1 to 4 in order
-	EnableFixedTimeUpload *byte
-	UploadClock           *time.Time
-	Model                 *byte
-	DisableType           *byte
+	TimeVerifyMode        TimeVerifyMode
+	Speed                 Speed
+	RecordingCycle        byte // 1 to 225 min, 0 is real-time
+	UploadCycle           byte // 1 to 225 min, 0 is real-time
+	EnableFixedTimeUpload byte // TODO:
+	UploadClock           time.Time
+	NetworkType           NetworkType
+	DisplayType           DisplayType
 	SystemTime            time.Time
 	OpenClock             time.Time
 	CloseClock            time.Time
@@ -134,8 +131,8 @@ func (data *Configuration) fromRequestFormat() {
 
 type GetSettingRequest struct {
 	SerialNumber    []byte
-	CommandType     byte
-	Speed           byte
+	TimeVerifyMode  TimeVerifyMode
+	Speed           Speed
 	RecordingCycle  byte
 	UploadCycle     byte
 	FixedTimeUpload byte
@@ -147,8 +144,8 @@ type GetSettingRequest struct {
 	UploadMinute3   byte
 	UploadHour4     byte
 	UploadMinute4   byte
-	Model           byte
-	DisableType     byte
+	NetworkType     NetworkType
+	DisplayType     DisplayType
 	MacAddress1     []byte
 	MacAddress2     []byte
 	MacAddress3     []byte
@@ -188,8 +185,8 @@ func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 
 	getSetting := &GetSettingRequest{
 		SerialNumber:    data[0:4],
-		CommandType:     data[4],
-		Speed:           data[5],
+		TimeVerifyMode:  TimeVerifyMode(data[4]),
+		Speed:           Speed(data[5]),
 		RecordingCycle:  data[6],
 		UploadCycle:     data[7],
 		FixedTimeUpload: data[8],
@@ -201,8 +198,8 @@ func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 		UploadMinute3:   data[14],
 		UploadHour4:     data[15],
 		UploadMinute4:   data[16],
-		Model:           data[17],
-		DisableType:     data[18],
+		NetworkType:     NetworkType(data[17]),
+		DisplayType:     DisplayType(data[18]),
 		MacAddress1:     data[19:26],
 		MacAddress2:     data[26:33],
 		MacAddress3:     data[33:40],
@@ -217,8 +214,7 @@ func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 		OpenMinute:      data[48],
 		CloseHour:       data[49],
 		CloseMinute:     data[50],
-		// TODO: ensure endian at here
-		Crc16: crc,
+		Crc16:           crc,
 	}
 
 	return getSetting, nil
@@ -229,10 +225,10 @@ func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 //   - see also: `GetSettingResponse`
 func (request GetSettingRequest) Response(flag uint16) *GetSettingResponse {
 	return &GetSettingResponse{
-		RespondingType:  RespondingTypeConfirmation,
+		RespondingType:  Confirmation,
 		Flag:            reverseU16(flag),
 		SerialNumber:    []byte{0, 0, 0, 0},
-		CommandType:     request.CommandType,
+		TimeVerifyMode:  request.TimeVerifyMode,
 		Speed:           request.Speed,
 		RecordingCycle:  request.RecordingCycle,
 		UploadCycle:     request.UploadCycle,
@@ -245,8 +241,8 @@ func (request GetSettingRequest) Response(flag uint16) *GetSettingResponse {
 		UploadMinute3:   request.UploadMinute3,
 		UploadHour4:     request.UploadHour4,
 		UploadMinute4:   request.UploadMinute4,
-		Model:           request.Model,
-		DisableType:     request.DisableType,
+		NetworkType:     request.NetworkType,
+		DisplayType:     request.DisplayType,
 		MacAddress1:     []byte{0, 0, 0, 0, 0, 0, 0},
 		MacAddress2:     []byte{0, 0, 0, 0, 0, 0, 0},
 		MacAddress3:     []byte{0, 0, 0, 0, 0, 0, 0},
@@ -271,8 +267,8 @@ type GetSettingResponse struct {
 	RespondingType  RespondingType
 	Flag            uint16
 	SerialNumber    []byte
-	CommandType     byte
-	Speed           byte
+	TimeVerifyMode  TimeVerifyMode
+	Speed           Speed
 	RecordingCycle  byte
 	UploadCycle     byte
 	FixedTimeUpload byte
@@ -284,8 +280,8 @@ type GetSettingResponse struct {
 	UploadMinute3   byte
 	UploadHour4     byte
 	UploadMinute4   byte
-	Model           byte
-	DisableType     byte
+	NetworkType     NetworkType
+	DisplayType     DisplayType
 	MacAddress1     []byte
 	MacAddress2     []byte
 	MacAddress3     []byte
@@ -305,55 +301,11 @@ type GetSettingResponse struct {
 	Crc16           uint16
 }
 
-// Deprecated: NewSettingResponse
-//
-// use instead
-//  GetSettingRequest.Response(flag uint16)
-func NewSettingResponse(request *GetSettingRequest, flag uint16) *GetSettingResponse {
-	return &GetSettingResponse{
-		RespondingType:  RespondingTypeConfirmation,
-		Flag:            ((flag & 0xFF) << 8) | ((flag & 0xFF00) >> 8),
-		SerialNumber:    []byte{0, 0, 0, 0},
-		CommandType:     request.CommandType,
-		Speed:           request.Speed,
-		RecordingCycle:  request.RecordingCycle,
-		UploadCycle:     request.UploadCycle,
-		FixedTimeUpload: request.FixedTimeUpload,
-		UploadHour1:     request.UploadHour1,
-		UploadMinute1:   request.UploadMinute1,
-		UploadHour2:     request.UploadHour2,
-		UploadMinute2:   request.UploadMinute2,
-		UploadHour3:     request.UploadHour3,
-		UploadMinute3:   request.UploadMinute3,
-		UploadHour4:     request.UploadHour4,
-		UploadMinute4:   request.UploadMinute4,
-		Model:           request.Model,
-		DisableType:     request.DisableType,
-		MacAddress1:     []byte{0, 0, 0, 0, 0, 0, 0},
-		MacAddress2:     []byte{0, 0, 0, 0, 0, 0, 0},
-		MacAddress3:     []byte{0, 0, 0, 0, 0, 0, 0},
-		Year:            request.Year,
-		Month:           request.Month,
-		Day:             request.Day,
-		Hour:            request.Hour,
-		Minute:          request.Minute,
-		Second:          request.Second,
-		Week:            0,
-		OpenHour:        request.OpenHour,
-		OpenMinute:      request.OpenMinute,
-		CloseHour:       request.CloseHour,
-		CloseMinute:     request.CloseMinute,
-		Reserved1:       0,
-		Reserved2:       0,
-		Crc16:           request.Crc16,
-	}
-}
-
 func (resp GetSettingResponse) GetConfiguration() *Configuration {
 	var uploadClock = time.Date(
-		0,
-		0,
-		0,
+		1,
+		1,
+		1,
 		int(resp.UploadHour1),
 		int(resp.UploadMinute1),
 		0,
@@ -361,7 +313,7 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 		time.Local,
 	)
 	var SystemTime = time.Date(
-		int(resp.Year),
+		int(resp.Year)+2000,
 		time.Month(resp.Month),
 		int(resp.Day),
 		int(resp.Hour),
@@ -372,36 +324,36 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 	)
 
 	var OpenClock = time.Date(
-		int(resp.Year),
-		time.Month(resp.Month),
-		int(resp.Day),
+		1,
+		1,
+		1,
 		int(resp.Hour),
 		int(resp.Minute),
-		int(resp.Second),
+		0,
 		0,
 		time.Local,
 	)
 
 	var CloseClock = time.Date(
-		int(resp.Year),
-		time.Month(resp.Month),
-		int(resp.Day),
+		1,
+		1,
+		1,
 		int(resp.Hour),
 		int(resp.Minute),
-		int(resp.Second),
+		0,
 		0,
 		time.Local,
 	)
 
 	return &Configuration{
-		CommandType:           &resp.CommandType,
-		Speed:                 &resp.Speed,
-		RecordingCycle:        &resp.RecordingCycle,
-		UploadCycle:           &resp.UploadCycle,
-		EnableFixedTimeUpload: &resp.FixedTimeUpload,
-		UploadClock:           &uploadClock,
-		Model:                 &resp.Model,
-		DisableType:           &resp.DisableType,
+		TimeVerifyMode:        resp.TimeVerifyMode,
+		Speed:                 resp.Speed,
+		RecordingCycle:        resp.RecordingCycle,
+		UploadCycle:           resp.UploadCycle,
+		EnableFixedTimeUpload: resp.FixedTimeUpload,
+		UploadClock:           uploadClock,
+		NetworkType:           resp.NetworkType,
+		DisplayType:           resp.DisplayType,
 		SystemTime:            SystemTime,
 		OpenClock:             OpenClock,
 		CloseClock:            CloseClock,
@@ -414,67 +366,124 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, error) {
 	original := response.GetConfiguration()
 
-	if cog.CommandType != nil && original.CommandType != cog.CommandType {
-		response.CommandType = *cog.CommandType
-		response.RespondingType = RespondingTypeNewParameterValue
+	if original.TimeVerifyMode != cog.TimeVerifyMode {
+		if enableDebugMessage {
+			fmt.Printf("- configuration changed: TimeVerifyMode: %v -> %v", response.TimeVerifyMode, cog.TimeVerifyMode)
+		}
+		response.TimeVerifyMode = cog.TimeVerifyMode
+		response.RespondingType = NewParameterValue
 	}
 
-	if cog.Speed != nil && original.Speed != cog.Speed {
-		response.Speed = *cog.Speed
-		response.RespondingType = RespondingTypeNewParameterValue
+	if original.Speed != cog.Speed {
+		if enableDebugMessage {
+			fmt.Printf("- configuration changed: Speed: %v -> %v", response.TimeVerifyMode, cog.TimeVerifyMode)
+		}
+		response.Speed = cog.Speed
+		response.RespondingType = NewParameterValue
 	}
 
-	if cog.RecordingCycle != nil && original.RecordingCycle != cog.RecordingCycle {
-		response.RecordingCycle = *cog.RecordingCycle
-		response.RespondingType = RespondingTypeNewParameterValue
+	if original.RecordingCycle != cog.RecordingCycle {
+		if enableDebugMessage {
+			fmt.Printf("- configuration changed: RecordingCycle: %v -> %v", response.TimeVerifyMode, cog.TimeVerifyMode)
+		}
+		response.RecordingCycle = cog.RecordingCycle
+		response.RespondingType = NewParameterValue
 	}
 
-	if cog.UploadCycle != nil && original.UploadCycle != cog.UploadCycle {
-		response.UploadCycle = *cog.UploadCycle
-		response.RespondingType = RespondingTypeNewParameterValue
+	if original.UploadCycle != cog.UploadCycle {
+		if enableDebugMessage {
+			fmt.Printf("- configuration changed: UploadCycle: %v -> %v", response.TimeVerifyMode, cog.TimeVerifyMode)
+		}
+		response.UploadCycle = cog.UploadCycle
+		response.RespondingType = NewParameterValue
 	}
 
-	if cog.EnableFixedTimeUpload != nil && original.EnableFixedTimeUpload != cog.EnableFixedTimeUpload {
-		response.FixedTimeUpload = *cog.EnableFixedTimeUpload
-		response.RespondingType = RespondingTypeNewParameterValue
+	if original.EnableFixedTimeUpload != cog.EnableFixedTimeUpload {
+		if enableDebugMessage {
+			fmt.Printf("- configuration changed: EnableFixedTimeUpload: %v -> %v", response.TimeVerifyMode, cog.TimeVerifyMode)
+		}
+		response.FixedTimeUpload = cog.EnableFixedTimeUpload
+		response.RespondingType = NewParameterValue
 	}
 
-	if cog.UploadClock != nil && original.UploadClock != cog.UploadClock {
-		response.UploadHour1 = byte(cog.UploadClock.Hour())
-		response.UploadMinute1 = byte(cog.UploadClock.Minute())
-		response.RespondingType = RespondingTypeNewParameterValue
+	// TODO: 업로드 시간 1~4
+	// if original.UploadClock != cog.UploadClock {
+	// 	response.UploadHour1 = byte(cog.UploadClock.Hour())
+	// 	response.UploadMinute1 = byte(cog.UploadClock.Minute())
+	// 	response.RespondingType = RespondingTypeNewParameterValue
+	// }
+
+	if original.NetworkType != cog.NetworkType {
+		if enableDebugMessage {
+			fmt.Printf("- configuration changed: NetworkType: %v -> %v", response.NetworkType, cog.NetworkType)
+		}
+		response.NetworkType = cog.NetworkType
+		response.RespondingType = NewParameterValue
 	}
 
-	if cog.Model != nil && original.Model != cog.Model {
-		response.Model = *cog.Model
-		response.RespondingType = RespondingTypeNewParameterValue
+	if original.DisplayType != cog.DisplayType {
+		if enableDebugMessage {
+			fmt.Printf("- configuration changed: DisplayType: %v -> %v", response.DisplayType, cog.DisplayType)
+		}
+		response.DisplayType = cog.DisplayType
+		response.RespondingType = NewParameterValue
 	}
 
-	if cog.DisableType != nil && original.DisableType != cog.DisableType {
-		response.DisableType = *cog.DisableType
-		response.RespondingType = RespondingTypeNewParameterValue
-	}
-
-	if original.SystemTime != cog.SystemTime {
+	if !equalTime(original.SystemTime, cog.SystemTime) {
+		if enableDebugMessage {
+			fmt.Printf(
+				"- configuration changed: SystemTime: %v-%v-%v %v:%v:%v -> %v-%v-%v %v:%v:%v",
+				response.Year,
+				response.Month,
+				response.Day,
+				response.Hour,
+				response.Minute,
+				response.Second,
+				cog.SystemTime.Year()%2000,
+				cog.SystemTime.Month(),
+				cog.SystemTime.Day(),
+				cog.SystemTime.Hour(),
+				cog.SystemTime.Minute(),
+				cog.SystemTime.Second(),
+			)
+		}
 		response.Year = byte(cog.SystemTime.Year() % 2000)
 		response.Month = byte(cog.SystemTime.Month())
 		response.Day = byte(cog.SystemTime.Day())
 		response.Hour = byte(cog.SystemTime.Hour())
 		response.Minute = byte(cog.SystemTime.Minute())
 		response.Second = byte(cog.SystemTime.Second())
-		response.RespondingType = RespondingTypeNewParameterValue
+		response.RespondingType = NewParameterValue
 	}
 
-	if original.OpenClock != cog.OpenClock {
+	if !equalClockOmitSec(original.OpenClock, cog.OpenClock) {
+		if enableDebugMessage {
+			fmt.Printf(
+				"- configuration changed: OpenClock: %v:%v -> %v:%v",
+				response.OpenHour,
+				response.OpenMinute,
+				cog.OpenClock.Hour(),
+				cog.OpenClock.Minute(),
+			)
+		}
 		response.OpenHour = byte(cog.OpenClock.Hour())
 		response.OpenMinute = byte(cog.OpenClock.Minute())
-		response.RespondingType = RespondingTypeNewParameterValue
+		response.RespondingType = NewParameterValue
 	}
 
-	if original.CloseClock != cog.CloseClock {
+	if !equalClockOmitSec(original.CloseClock, cog.CloseClock) {
+		if enableDebugMessage {
+			fmt.Printf(
+				"- configuration changed: CloseClock: %v:%v -> %v:%v",
+				response.CloseHour,
+				response.CloseMinute,
+				cog.CloseClock.Hour(),
+				cog.CloseClock.Minute(),
+			)
+		}
 		response.CloseHour = byte(cog.CloseClock.Hour())
 		response.CloseMinute = byte(cog.CloseClock.Minute())
-		response.RespondingType = RespondingTypeNewParameterValue
+		response.RespondingType = NewParameterValue
 	}
 
 	return false, nil
@@ -490,7 +499,7 @@ func (response GetSettingResponse) Binary() ([]byte, error) {
 	binary.Write(buf, binary.BigEndian, response.RespondingType)
 	binary.Write(buf, binary.BigEndian, response.Flag)
 	binary.Write(buf, binary.BigEndian, response.SerialNumber)
-	binary.Write(buf, binary.BigEndian, response.CommandType)
+	binary.Write(buf, binary.BigEndian, response.TimeVerifyMode)
 	binary.Write(buf, binary.BigEndian, response.Speed)
 	binary.Write(buf, binary.BigEndian, response.RecordingCycle)
 	binary.Write(buf, binary.BigEndian, response.UploadCycle)
@@ -503,8 +512,8 @@ func (response GetSettingResponse) Binary() ([]byte, error) {
 	binary.Write(buf, binary.BigEndian, response.UploadMinute3)
 	binary.Write(buf, binary.BigEndian, response.UploadHour4)
 	binary.Write(buf, binary.BigEndian, response.UploadMinute4)
-	binary.Write(buf, binary.BigEndian, response.Model)
-	binary.Write(buf, binary.BigEndian, response.DisableType)
+	binary.Write(buf, binary.BigEndian, response.NetworkType)
+	binary.Write(buf, binary.BigEndian, response.DisplayType)
 	binary.Write(buf, binary.BigEndian, response.MacAddress1)
 	binary.Write(buf, binary.BigEndian, response.MacAddress2)
 	binary.Write(buf, binary.BigEndian, response.MacAddress3)
@@ -529,48 +538,12 @@ func (response GetSettingResponse) Binary() ([]byte, error) {
 	}
 	binary.Write(buf, binary.BigEndian, crc)
 
+	if buf.Len() != 58 {
+		return nil, errors.New("response length must be 58")
+	}
+
 	return buf.Bytes(), err
 }
-
-// TimeVerifType
-//
-// In manual, written as `Commond Type`
-//  0x00 exclude the verification hours and business hours
-//  0x01 include the time of verifying the system
-//  0x02 include the time of verifying the business hours
-//  0x03 include the time of verifying the system and business hours
-// type TimeVerifType byte
-
-// const (
-// 	Exclude TimeVerifType = iota
-// 	System
-// 	Business
-// 	Both
-// )
-
-// Operation mode
-type NetworkType byte
-
-const (
-	GridConnected           NetworkType = 0
-	StandAlone              NetworkType = 0
-	StandAloneWithoutUpload NetworkType = 1
-)
-
-type DiableTypeEnum byte
-
-const (
-	DpModeNotDisplay       DiableTypeEnum = 0
-	DpModeTotalDisplay     DiableTypeEnum = 1
-	DpModebilateralDisplay DiableTypeEnum = 2
-)
-
-type RespondingType byte
-
-const (
-	RespondingTypeNewParameterValue = 0x04 // new parameter value
-	RespondingTypeConfirmation      = 0x05 // parameter confirmation, after confirmation and responding, the parameter will be neglected.
-)
 
 // DeviceStatus represent datus of device
 //
@@ -602,16 +575,6 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 	}
 
 	var status = new(DeviceStatus)
-	// buf := bytes.NewBufferString(data)
-	// versionString, err := buf.ReadBytes(2)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// version, err := strconv.ParseUint(string(versionString), 16, 16)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// status.Version = uint16(version)
 
 	data, version, err := readU16(data)
 	if err != nil {
@@ -668,6 +631,7 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 // calcCrc16 verifies all byte calculation before crc fields(excluding “result=”)
 //   - length of `data` must not logner than 78.
 //   - 1 byte high 8, 1 byte low 8
+//   - result of this function always treated as BigEndian
 func calcCrc16(data []byte) (uint16, error) {
 	var crc uint16 = 0xFFFF
 
@@ -769,46 +733,46 @@ func NewCacheRequest(requestSchema *RequestSchema) (*CacheRequest, error) {
 
 func (request *CacheRequest) Response(answerType AnswerType, flag uint16, configured Configuration) *CacheResponse {
 	return &CacheResponse{
-		AnswerType:  answerType,
-		Flag:        reverseU16(flag),
-		CommandType: 3,
-		Year:        request.Data[0].Year,
-		Month:       request.Data[0].Month,
-		Day:         request.Data[0].Day,
-		Hour:        request.Data[0].Hour,
-		Minute:      request.Data[0].Minute,
-		Second:      request.Data[0].Secound,
-		Week:        0,
-		OpenHour:    byte(configured.OpenClock.Hour()),
-		OpenMinute:  byte(configured.OpenClock.Minute()),
-		CloseHour:   byte(configured.CloseClock.Hour()),
-		CloseMinute: byte(configured.CloseClock.Minute()),
+		AnswerType:     answerType,
+		Flag:           reverseU16(flag),
+		TimeVerifyMode: 0,
+		Year:           byte(configured.SystemTime.Year() % 2000),
+		Month:          byte(configured.SystemTime.Month()),
+		Day:            byte(configured.SystemTime.Day()),
+		Hour:           byte(configured.SystemTime.Hour()),
+		Minute:         byte(configured.SystemTime.Minute()),
+		Second:         byte(configured.SystemTime.Second()),
+		Week:           0,
+		OpenHour:       byte(configured.OpenClock.Hour()),
+		OpenMinute:     byte(configured.OpenClock.Minute()),
+		CloseHour:      byte(configured.CloseClock.Hour()),
+		CloseMinute:    byte(configured.CloseClock.Minute()),
 	}
 }
 
 type CacheResponse struct {
-	AnswerType  AnswerType
-	Flag        uint16
-	CommandType byte
-	Year        byte
-	Month       byte
-	Day         byte
-	Hour        byte
-	Minute      byte
-	Second      byte
-	Week        byte
-	OpenHour    byte
-	OpenMinute  byte
-	CloseHour   byte
-	CloseMinute byte
-	Crc16       uint16
+	AnswerType     AnswerType
+	Flag           uint16
+	TimeVerifyMode TimeVerifyMode
+	Year           byte
+	Month          byte
+	Day            byte
+	Hour           byte
+	Minute         byte
+	Second         byte
+	Week           byte
+	OpenHour       byte
+	OpenMinute     byte
+	CloseHour      byte
+	CloseMinute    byte
+	Crc16          uint16
 }
 
 func (response *CacheResponse) Binary() ([]byte, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, 58))
 	binary.Write(buf, binary.BigEndian, response.AnswerType)
 	binary.Write(buf, binary.BigEndian, response.Flag)
-	binary.Write(buf, binary.BigEndian, response.CommandType)
+	binary.Write(buf, binary.BigEndian, response.TimeVerifyMode)
 	binary.Write(buf, binary.BigEndian, response.Year)
 	binary.Write(buf, binary.BigEndian, response.Month)
 	binary.Write(buf, binary.BigEndian, response.Day)
@@ -831,14 +795,6 @@ func (response *CacheResponse) Binary() ([]byte, error) {
 	return buf.Bytes(), err
 
 }
-
-type AnswerType byte
-
-// AnswerType represent wethere upload is failed or not
-const (
-	Failed AnswerType = 0x00
-	OK     AnswerType = 0x01
-)
 
 type BusinessClock struct {
 	OpenClock  Clock

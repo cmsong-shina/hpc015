@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 func reverseU16(flag uint16) uint16 {
@@ -72,4 +73,47 @@ func readBytes(s string, length int) (string, []byte, error) {
 		return s, nil, fmt.Errorf("failed to read bytes: %s", err.Error())
 	}
 	return s[length*2:], data, nil
+}
+
+// euqalDate compare tow time, by their year, month, secounds day
+// if they are same, return true, else return false
+func euqalDate(t1, t2 time.Time) bool {
+	y1, m1, d1 := t1.Date()
+	y2, m2, d2 := t2.Date()
+
+	return y1 == y2 && m1 == m2 && d1 == d2
+}
+
+// equalClock compare tow time, by their hour, minute, secounds only
+// if they are same, return true, else return false
+func equalClock(t1, t2 time.Time) bool {
+	h1, m1, s1 := t1.Clock()
+	h2, m2, s2 := t2.Clock()
+
+	return h1 == h2 && m1 == m2 && s1 == s2
+}
+
+// equalClockOmitSec compare tow time, by their hour, minute only
+// if they are same, return true, else return false
+func equalClockOmitSec(t1, t2 time.Time) bool {
+	h1, m1, _ := t1.Clock()
+	h2, m2, _ := t2.Clock()
+
+	return h1 == h2 && m1 == m2
+}
+
+// equalTime compare tow time,
+// by their year, month, secound, hour, minute, secounds only
+// means, ignore under millisecond
+// if they are same, return true, else return false
+func equalTime(t1, t2 time.Time) bool {
+	return (euqalDate(t1, t2) == true) && (equalClock(t1, t2) == true)
+}
+
+// equalTime compare tow time,
+// by their year, month, secound, hour, minute only
+// means, ignore under millisecond
+// if they are same, return true, else return false
+func equalTimeOmitSec(t1, t2 time.Time) bool {
+	return (euqalDate(t1, t2) == true) && (equalClockOmitSec(t1, t2) == true)
 }

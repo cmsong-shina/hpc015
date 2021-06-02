@@ -4,13 +4,35 @@
 package hpc015
 
 import (
+	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"reflect"
 	"testing"
 
 	"github.com/kr/pretty"
 )
+
+func TestIntegrateSetting(t *testing.T) {
+
+	var input = "cmd=getsetting&flag=022E&data=0D3BB382030000000000000000000000000002085DDD5A75CBDC0A5DDD5A75CBDC909F33173CE4DA0F010100022E010000173B80C0"
+	requestSchema, err := NewRequestSchema(input)
+	if err != nil {
+		t.Errorf("NewRequestSchema() error = %v", err)
+		t.FailNow()
+		return
+	}
+
+	setReq, err := NewSettingRequest(requestSchema.Data[0])
+	if err != nil {
+		t.Errorf("NewSettingRequest() error = %v", err)
+		t.FailNow()
+	}
+
+	_ = setReq
+
+}
 
 func TestNewRequest(t *testing.T) {
 	type args struct {
@@ -101,7 +123,7 @@ func TestNewSettingRequest(t *testing.T) {
 			},
 			want: &GetSettingRequest{
 				SerialNumber:    []byte{0xD, 0x3B, 0xB3, 0x82},
-				CommandType:     0x3,
+				TimeVerifyMode:  0x3,
 				Speed:           0x0,
 				RecordingCycle:  0x0,
 				UploadCycle:     0x0,
@@ -114,8 +136,8 @@ func TestNewSettingRequest(t *testing.T) {
 				UploadMinute3:   0x0,
 				UploadHour4:     0x0,
 				UploadMinute4:   0x0,
-				Model:           0x0,
-				DisableType:     0x2,
+				NetworkType:     0x0,
+				DisplayType:     0x2,
 				MacAddress1:     []byte{0x8, 0x5D, 0xDD, 0x5A, 0x75, 0xCB, 0xDC},
 				MacAddress2:     []byte{0xA, 0x5D, 0xDD, 0x5A, 0x75, 0xCB, 0xDC},
 				MacAddress3:     []byte{0x90, 0x9F, 0x33, 0x17, 0x3C, 0xE4, 0xDA},
@@ -130,7 +152,7 @@ func TestNewSettingRequest(t *testing.T) {
 				OpenMinute:      0x0,
 				CloseHour:       0x17,
 				CloseMinute:     0x3B,
-				Crc16:           0xC080,
+				Crc16:           binary.BigEndian.Uint16([]byte{0x80, 0xC0}),
 			},
 			wantErr: false,
 		},
@@ -146,66 +168,6 @@ func TestNewSettingRequest(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewSettingRequest() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestNewSettingResponse(t *testing.T) {
-	type args struct {
-		request *GetSettingRequest
-		flag    uint16
-	}
-	tests := []struct {
-		name string
-		args args
-		want *GetSettingResponse
-	}{
-		{
-			name: "",
-			args: args{
-				&GetSettingRequest{
-					SerialNumber:    []byte{0xD, 0x3B, 0xB3, 0x82},
-					CommandType:     0x3,
-					Speed:           0x0,
-					RecordingCycle:  0x0,
-					UploadCycle:     0x0,
-					FixedTimeUpload: 0x0,
-					UploadHour1:     0x0,
-					UploadMinute1:   0x0,
-					UploadHour2:     0x0,
-					UploadMinute2:   0x0,
-					UploadHour3:     0x0,
-					UploadMinute3:   0x0,
-					UploadHour4:     0x0,
-					UploadMinute4:   0x0,
-					Model:           0x0,
-					DisableType:     0x2,
-					MacAddress1:     []byte{0x8, 0x5D, 0xDD, 0x5A, 0x75, 0xCB, 0xDC},
-					MacAddress2:     []byte{0xA, 0x5D, 0xDD, 0x5A, 0x75, 0xCB, 0xDC},
-					MacAddress3:     []byte{0x90, 0x9F, 0x33, 0x17, 0x3C, 0xE4, 0xDA},
-					Year:            0xF,
-					Month:           0x1,
-					Day:             0x1,
-					Hour:            0x0,
-					Minute:          0x2,
-					Second:          0x2E,
-					Week:            0x1,
-					OpenHour:        0x0,
-					OpenMinute:      0x0,
-					CloseHour:       0x17,
-					CloseMinute:     0x3B,
-					Crc16:           0xC080,
-				},
-				0x022E,
-			},
-			want: &GetSettingResponse{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewSettingResponse(tt.args.request, tt.args.flag); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewSettingResponse() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -229,8 +191,8 @@ func TestGetSettingResponse_toBindary(t *testing.T) {
 		UploadMinute3   byte
 		UploadHour4     byte
 		UploadMinute4   byte
-		Model           byte
-		DisableType     byte
+		NetworkType     NetworkType
+		DisplayMode     byte
 		MacAddress1     []byte
 		MacAddress2     []byte
 		MacAddress3     []byte
@@ -258,40 +220,39 @@ func TestGetSettingResponse_toBindary(t *testing.T) {
 			name: "",
 			fields: fields{
 				RespondingType:  0x04,
-				Flag:            0x12AB,
-				SerialNumber:    []byte{0xD, 0x3B, 0xB3, 0x82},
-				CommandType:     0x3,
-				Speed:           0x0,
-				RecordingCycle:  0x0,
-				UploadCycle:     0x0,
-				FixedTimeUpload: 0x0,
-				UploadHour1:     0x0,
-				UploadMinute1:   0x0,
-				UploadHour2:     0x0,
-				UploadMinute2:   0x0,
-				UploadHour3:     0x0,
-				UploadMinute3:   0x0,
-				UploadHour4:     0x0,
-				UploadMinute4:   0x0,
-				Model:           0x0,
-				DisableType:     0x2,
-				MacAddress1:     []byte{0x8, 0x5D, 0xDD, 0x5A, 0x75, 0xCB, 0xDC},
-				MacAddress2:     []byte{0xA, 0x5D, 0xDD, 0x5A, 0x75, 0xCB, 0xDC},
-				MacAddress3:     []byte{0x90, 0x9F, 0x33, 0x17, 0x3C, 0xE4, 0xDA},
-				Year:            0xF,
-				Month:           0x1,
-				Day:             0x1,
-				Hour:            0x0,
-				Minute:          0x2,
-				Secound:         0x2E,
-				Week:            0x1,
-				OpenHour:        0x0,
-				OpenMinute:      0x0,
-				CloseHour:       0x17,
-				CloseMinute:     0x3B,
-				Crc16:           0xC080,
+				Flag:            binary.BigEndian.Uint16([]byte{0, 0}),
+				SerialNumber:    []byte{0, 0, 0, 0},
+				CommandType:     0x03,
+				Speed:           0x00,
+				RecordingCycle:  0x0A,
+				UploadCycle:     0x78,
+				FixedTimeUpload: 0x00,
+				UploadHour1:     0x00,
+				UploadMinute1:   0x00,
+				UploadHour2:     0x00,
+				UploadMinute2:   0x00,
+				UploadHour3:     0x00,
+				UploadMinute3:   0x00,
+				UploadHour4:     0x00,
+				UploadMinute4:   0x00,
+				NetworkType:     0x00,
+				DisplayMode:     0x02,
+				MacAddress1:     []byte{0, 0, 0, 0, 0, 0, 0},
+				MacAddress2:     []byte{0, 0, 0, 0, 0, 0, 0},
+				MacAddress3:     []byte{0, 0, 0, 0, 0, 0, 0},
+				Year:            0x11,
+				Month:           0x03,
+				Day:             0x05,
+				Hour:            0x11,
+				Minute:          0x11,
+				Secound:         0x26,
+				Week:            0x00,
+				OpenHour:        0x0A,
+				OpenMinute:      0x00,
+				CloseHour:       0x14,
+				CloseMinute:     0x1E,
 			},
-			want: []byte{},
+			want: []uint8{0x4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3, 0x0, 0xa, 0x78, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x11, 0x3, 0x5, 0x11, 0x11, 0x26, 0x0, 0xa, 0x0, 0x14, 0x1e, 0x0, 0x0, 0x93, 0x51},
 		},
 	}
 	for _, tt := range tests {
@@ -300,8 +261,8 @@ func TestGetSettingResponse_toBindary(t *testing.T) {
 				RespondingType:  tt.fields.RespondingType,
 				Flag:            tt.fields.Flag,
 				SerialNumber:    tt.fields.SerialNumber,
-				CommandType:     tt.fields.CommandType,
-				Speed:           tt.fields.Speed,
+				TimeVerifyMode:  TimeVerifyMode(tt.fields.CommandType),
+				Speed:           Speed(tt.fields.Speed),
 				RecordingCycle:  tt.fields.RecordingCycle,
 				UploadCycle:     tt.fields.UploadCycle,
 				FixedTimeUpload: tt.fields.FixedTimeUpload,
@@ -313,8 +274,8 @@ func TestGetSettingResponse_toBindary(t *testing.T) {
 				UploadMinute3:   tt.fields.UploadMinute3,
 				UploadHour4:     tt.fields.UploadHour4,
 				UploadMinute4:   tt.fields.UploadMinute4,
-				Model:           tt.fields.Model,
-				DisableType:     tt.fields.DisableType,
+				NetworkType:     tt.fields.NetworkType,
+				DisplayType:     DisplayType(tt.fields.DisplayMode),
 				MacAddress1:     tt.fields.MacAddress1,
 				MacAddress2:     tt.fields.MacAddress2,
 				MacAddress3:     tt.fields.MacAddress3,
@@ -443,6 +404,11 @@ func TestCalcCrc16(t *testing.T) {
 			[]uint8{0x15, 0x5, 0xd, 0xd, 0x33, 0x31, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0},
 			binary.BigEndian.Uint16([]uint8{0xa9, 0xce}),
 		},
+
+		{
+			[]uint8{0x5, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf, 0x1, 0x1, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x17, 0x3b, 0x0, 0x0},
+			binary.BigEndian.Uint16([]uint8{0x1c, 0xe4}),
+		},
 	}
 
 	for _, tc := range tests {
@@ -462,10 +428,8 @@ func TestCalcCrc16(t *testing.T) {
 // use to make test case
 func TestHexStringToGoLiteral(t *testing.T) {
 	var inputs = []string{
-		"0D3BB382030000000000000000000000000002085DDD5A75CBDC0A5DDD5A75CBDC909F33173CE4DA0F0101000002010000173BECE4",
-		"0D3BB382030000000000000000000000000002085DDD5A75CBDC0A5DDD5A75CBDC909F33173CE4DA0F0101000023010000173B5DE2",
-		"0D3BB382030000000000000000000000000002085DDD5A75CBDC0A5DDD5A75CBDC909F33173CE4DA0F010100000A010000173BA4E5",
-		"0D3BB382030000000000000000000000000002085DDD5A75CBDC0A5DDD5A75CBDC909F33173CE4DA0F0101000008010000173B46E4",
+
+		"050200000000000300000000000000000000000000000000000000000000000000000000000000000000000F0101000002000000173B00001CE4",
 	}
 
 	for _, tt := range inputs {
@@ -478,4 +442,43 @@ func TestHexStringToGoLiteral(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParsingSettingRequests(t *testing.T) {
+	var inputs = []string{
+		//                             |       c s r u f u u u u u u u u   d                                                         o o c c
+		//                             |       m p c p i h m h m h m h m m s                                                         p p l l
+		//                             |serial|d|d|c|c|x|1|1|2|2|3|3|4|4|d|p|mac_addr1    |mac_addr2    |mac_addr3    |Y|M|D|H|M|S|W|h|m|h|m|crc|
+		"cmd=getsetting&flag=0002&data=0D3BB382030000000000000000000000000002085DDD5A75CBDC0A5DDD5A75CBDC909F33173CE4DA0F0101000002010000173BECE4",
+		"cmd=getsetting&flag=1E28&data=0D3BB382030000000000000000000000000002085DDD5A75CBDC0A5DDD5A75CBDC909F33173CE4DA0F0101001E28000000173BE720",
+		"cmd=getsetting&flag=012B&data=0D3BB382030000000000000000000000000000085DDD5A75CBDC0A5DDD5A75CBDC909F33173CE4DA1506020E012B000000173B6B46",
+	}
+
+	for _, input := range inputs {
+		fmt.Println()
+		schema, err := NewRequestSchema(input)
+		if err != nil {
+			t.Fatal("NewRequestSchema() failed:", err)
+		}
+		_ = schema
+
+		setReq, err := NewSettingRequest(schema.Data[0])
+		if err != nil {
+			log.Println("\t! failed to parse SettingRequest:", err.Error())
+			return
+		}
+
+		// new response based on request
+		setResp := setReq.Response(schema.Flag)
+
+		// (optional) get current configuration
+		conf := setResp.GetConfiguration()
+		fmt.Printf("- current systemtime: %v\n", *&conf.SystemTime)
+		fmt.Printf("- current recording cycle: %d\n", conf.RecordingCycle)
+		fmt.Printf("- current uploading cycle: %d\n", conf.UploadCycle)
+		fmt.Printf("- current EnableFixedTimeUpload: %d\n", conf.EnableFixedTimeUpload)
+		fmt.Printf("- current CloseClock: %v\n", conf.CloseClock)
+		fmt.Printf("- current OpenClock: %v\n", conf.OpenClock)
+	}
+
 }
