@@ -15,21 +15,23 @@ import (
 	"time"
 )
 
-// RequestSchema basic form of request
+// RequestSchema basic form of request, it just hold bunch of raw data.
+//
+// Returned value is still not useful,
+// covert to getsetting struct or cache struct depend on RequestSchema.Cmd
 //
 // There are two kind of commands, which are:
 //   - `getsetting`: To obtain setting value
 //   - `cache`: To upload cache data
 //
-// Returned value is still not useful,
-// covert to getsetting struct or cache struct depend on RequestSchema.Cmd
+// See also
 type RequestSchema struct {
-	Cmd    string        // for request
-	Flag   uint16        // for request, means timestamp
-	Data   [][]byte      // for request
-	Status *DeviceStatus // for cache request, means information of device
-	Count  uint16        // for cache request, means number of [Data]
-	Result byte          // for response, do not use this field
+	Cmd    string   // for request
+	Flag   uint16   // for request, means timestamp
+	Data   [][]byte // for request
+	Status string   // for cache request, means information of device
+	Count  uint16   // for cache request, means number of [Data]
+	Result byte     // for response, do not use this field
 }
 
 // NewRequestSchema makes RequestSchema from raw string
@@ -55,11 +57,12 @@ func NewRequestSchema(reqestString string) (*RequestSchema, error) {
 
 	v, ok = fieldsTable["status"]
 	if ok {
-		status, err := NewDeviceStatus(v)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode status: %s", err.Error())
-		}
-		request.Status = status
+		// status, err := hex.DecodeString(v)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to decode status: %s", err.Error())
+		// }
+		// request.Status = status
+		request.Status = v
 	}
 
 	v, ok = fieldsTable["flag"]
@@ -72,11 +75,16 @@ func NewRequestSchema(reqestString string) (*RequestSchema, error) {
 
 	v, ok = fieldsTable["data"]
 	if ok {
-		data, err := hex.DecodeString(v)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode data: %s", err.Error())
+		for _, field := range fields {
+			splitedField := strings.Split(field, "=")
+			if splitedField[0] == "data" {
+				data, err := hex.DecodeString(v)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode data: %s", err.Error())
+				}
+				request.Data = append(request.Data, data)
+			}
 		}
-		request.Data = append(request.Data, data)
 	}
 
 	v, ok = fieldsTable["count"]
@@ -98,18 +106,34 @@ func NewRequestSchema(reqestString string) (*RequestSchema, error) {
 	return request, nil
 }
 
+// Configuration represent hpc015's configuration.
+//
+// SystemTime, OpenClock, CloseClock are mandatory.
+//
+// About Recording and Uploading,
+// Recording means within business hour, timestamp interval of data,
+// Uploading meas within business hour, specify the uploading time period via WIFI.
+//
 type Configuration struct {
-	CommandType     *byte
-	Speed           *byte
-	RecordingCycle  *byte
-	UploadCycle     *byte
-	FixedTimeUpload *byte
-	UploadClock     *time.Time
-	Model           *byte
-	DisableType     *byte
-	SystemTime      *time.Time
-	OpenClock       *time.Time
-	CloseClock      *time.Time
+	CommandType *byte
+	Speed       *byte
+
+	// 1 to 225 min, 0 is real-time
+	RecordingCycle *byte
+
+	// 1 to 225 min, 0 is real-time
+	UploadCycle *byte
+
+	// Specify the uploading time, refered as `EnableFixedTimeUpload` in manual.
+	//  0 not used
+	//  1-4 use fixed point time, use from 1 to 4 in order
+	EnableFixedTimeUpload *byte
+	UploadClock           *time.Time
+	Model                 *byte
+	DisableType           *byte
+	SystemTime            time.Time
+	OpenClock             time.Time
+	CloseClock            time.Time
 }
 
 func (data *Configuration) fromRequestFormat() {
@@ -210,7 +234,7 @@ func NewSettingRequest(data []byte) (*GetSettingRequest, error) {
 func (request GetSettingRequest) Response(flag uint16) *GetSettingResponse {
 	return &GetSettingResponse{
 		RespondingType:  RespondingTypeConfirmation,
-		Flag:            ((flag & 0xFF) << 8) | ((flag & 0xFF00) >> 8),
+		Flag:            reverseU16(flag),
 		SerialNumber:    []byte{0, 0, 0, 0},
 		CommandType:     request.CommandType,
 		Speed:           request.Speed,
@@ -374,17 +398,17 @@ func (resp GetSettingResponse) GetConfiguration() *Configuration {
 	)
 
 	return &Configuration{
-		CommandType:     &resp.CommandType,
-		Speed:           &resp.Speed,
-		RecordingCycle:  &resp.RecordingCycle,
-		UploadCycle:     &resp.UploadCycle,
-		FixedTimeUpload: &resp.FixedTimeUpload,
-		UploadClock:     &uploadClock,
-		Model:           &resp.Model,
-		DisableType:     &resp.DisableType,
-		SystemTime:      &SystemTime,
-		OpenClock:       &OpenClock,
-		CloseClock:      &CloseClock,
+		CommandType:           &resp.CommandType,
+		Speed:                 &resp.Speed,
+		RecordingCycle:        &resp.RecordingCycle,
+		UploadCycle:           &resp.UploadCycle,
+		EnableFixedTimeUpload: &resp.FixedTimeUpload,
+		UploadClock:           &uploadClock,
+		Model:                 &resp.Model,
+		DisableType:           &resp.DisableType,
+		SystemTime:            SystemTime,
+		OpenClock:             OpenClock,
+		CloseClock:            CloseClock,
 	}
 }
 
@@ -414,8 +438,8 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
-	if cog.FixedTimeUpload != nil && original.FixedTimeUpload != cog.FixedTimeUpload {
-		response.FixedTimeUpload = *cog.FixedTimeUpload
+	if cog.EnableFixedTimeUpload != nil && original.EnableFixedTimeUpload != cog.EnableFixedTimeUpload {
+		response.FixedTimeUpload = *cog.EnableFixedTimeUpload
 		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
@@ -435,7 +459,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
-	if cog.SystemTime != nil && original.SystemTime != cog.SystemTime {
+	if original.SystemTime != cog.SystemTime {
 		response.Year = byte(cog.SystemTime.Year() % 2000)
 		response.Month = byte(cog.SystemTime.Month())
 		response.Day = byte(cog.SystemTime.Day())
@@ -445,13 +469,13 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
-	if cog.OpenClock != nil && original.OpenClock != cog.OpenClock {
+	if original.OpenClock != cog.OpenClock {
 		response.OpenHour = byte(cog.OpenClock.Hour())
 		response.OpenMinute = byte(cog.OpenClock.Minute())
 		response.RespondingType = RespondingTypeNewParameterValue
 	}
 
-	if cog.CloseClock != nil && original.CloseClock != cog.CloseClock {
+	if original.CloseClock != cog.CloseClock {
 		response.CloseHour = byte(cog.CloseClock.Hour())
 		response.CloseMinute = byte(cog.CloseClock.Minute())
 		response.RespondingType = RespondingTypeNewParameterValue
@@ -512,19 +536,29 @@ func (response GetSettingResponse) Binary() ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-// 0x00 exclude the verification hours and business hours
-// 0x01 include the time of verifying the system
-// 0x02 include the time of verifying the business hours
-// 0x03 include the time of verifying the system and business hours
-type CommandType byte
+// TimeVerifType
+//
+// In manual, written as `Commond Type`
+//  0x00 exclude the verification hours and business hours
+//  0x01 include the time of verifying the system
+//  0x02 include the time of verifying the business hours
+//  0x03 include the time of verifying the system and business hours
+// type TimeVerifType byte
+
+// const (
+// 	Exclude TimeVerifType = iota
+// 	System
+// 	Business
+// 	Both
+// )
 
 // Operation mode
-type ModelEnum byte
+type NetworkType byte
 
 const (
-	OpModeGridConnected           ModelEnum = 0
-	OpModeStandAlone              ModelEnum = 0
-	OpModeStandAloneWithoutUpload ModelEnum = 1
+	GridConnected           NetworkType = 0
+	StandAlone              NetworkType = 0
+	StandAloneWithoutUpload NetworkType = 1
 )
 
 type DiableTypeEnum byte
@@ -687,7 +721,7 @@ func NewCacheData(data []byte) (*CacheData, error) {
 		return nil, errors.New("failed to verify crc:" + err.Error())
 	}
 
-	if crc != binary.BigEndian.Uint16(data[51:53]) {
+	if crc != binary.BigEndian.Uint16(data[15:17]) {
 		return nil, errors.New("failed to parse CacheData: incorrect crc")
 	}
 
@@ -716,11 +750,16 @@ type CacheRequest struct {
 func NewCacheRequest(requestSchema *RequestSchema) (*CacheRequest, error) {
 	var request = new(CacheRequest)
 
-	if int(requestSchema.Count) != len(request.Data) {
-		return nil, errors.New("failed to parse cache request: length of data")
+	if int(requestSchema.Count) != len(requestSchema.Data) {
+		return nil, errors.New("failed to parse cache request: count and length of data is not same")
 	}
 
-	request.Status = requestSchema.Status
+	status, err := NewDeviceStatus(requestSchema.Status)
+	if err != nil {
+		return nil, errors.New("failed to parse cache request:" + err.Error())
+	}
+
+	request.Status = status
 	for _, data := range requestSchema.Data {
 		cData, err := NewCacheData(data)
 		if err != nil {
@@ -732,5 +771,106 @@ func NewCacheRequest(requestSchema *RequestSchema) (*CacheRequest, error) {
 	return request, nil
 }
 
+func (request *CacheRequest) Response(answerType AnswerType, flag uint16, configured Configuration) *CacheResponse {
+	return &CacheResponse{
+		AnswerType:  answerType,
+		Flag:        reverseU16(flag),
+		CommandType: 3,
+		Year:        request.Data[0].Year,
+		Month:       request.Data[0].Month,
+		Day:         request.Data[0].Day,
+		Hour:        request.Data[0].Hour,
+		Minute:      request.Data[0].Minute,
+		Second:      request.Data[0].Secound,
+		Week:        0,
+		OpenHour:    byte(configured.OpenClock.Hour()),
+		OpenMinute:  byte(configured.OpenClock.Minute()),
+		CloseHour:   byte(configured.CloseClock.Hour()),
+		CloseMinute: byte(configured.CloseClock.Minute()),
+	}
+}
+
 type CacheResponse struct {
+	AnswerType  AnswerType
+	Flag        uint16
+	CommandType byte
+	Year        byte
+	Month       byte
+	Day         byte
+	Hour        byte
+	Minute      byte
+	Second      byte
+	Week        byte
+	OpenHour    byte
+	OpenMinute  byte
+	CloseHour   byte
+	CloseMinute byte
+	Crc16       uint16
+}
+
+func (response *CacheResponse) Binary() ([]byte, error) {
+	buf := bytes.NewBuffer(make([]byte, 0, 58))
+	binary.Write(buf, binary.BigEndian, response.AnswerType)
+	binary.Write(buf, binary.BigEndian, response.Flag)
+	binary.Write(buf, binary.BigEndian, response.CommandType)
+	binary.Write(buf, binary.BigEndian, response.Year)
+	binary.Write(buf, binary.BigEndian, response.Month)
+	binary.Write(buf, binary.BigEndian, response.Day)
+	binary.Write(buf, binary.BigEndian, response.Hour)
+	binary.Write(buf, binary.BigEndian, response.Minute)
+	binary.Write(buf, binary.BigEndian, response.Second)
+	binary.Write(buf, binary.BigEndian, response.Week)
+	binary.Write(buf, binary.BigEndian, response.OpenHour)
+	binary.Write(buf, binary.BigEndian, response.OpenMinute)
+	binary.Write(buf, binary.BigEndian, response.CloseHour)
+	binary.Write(buf, binary.BigEndian, response.CloseMinute)
+
+	// eval crc
+	crc, err := calcCrc16(buf.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	binary.Write(buf, binary.BigEndian, crc)
+
+	return buf.Bytes(), err
+
+}
+
+type AnswerType byte
+
+// AnswerType represent wethere upload is failed or not
+const (
+	Failed AnswerType = 0x00
+	OK     AnswerType = 0x01
+)
+
+type BusinessClock struct {
+	OpenClock  Clock
+	CloseClock Clock
+}
+
+func NewBusinessClock(openHour, openMinute, closeHour, closeMinute byte) BusinessClock {
+	return BusinessClock{
+		NewClock(openHour, openMinute),
+		NewClock(closeHour, closeMinute),
+	}
+}
+
+type Clock struct {
+	Hour    byte
+	Minute  byte
+	Secound byte
+}
+
+func NewClock(hour byte, minute byte, secound ...byte) Clock {
+	if secound == nil {
+		secound[0] = 0
+	}
+
+	return Clock{
+		Hour:    hour,
+		Minute:  minute,
+		Secound: secound[0],
+	}
+
 }

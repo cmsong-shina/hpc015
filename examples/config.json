@@ -1,0 +1,35 @@
+{
+    "command-type": "exclude-all",
+    "speed": "low-speed",
+    "recording-cycle": 0,
+    "uploading-cycle": 0,
+    "fixed-time-upload": [
+        {
+            "enable": true,
+            "upload-hour": 0,
+            "upload-minutes": 0
+        },
+        {
+            "enable": true,
+            "upload-hour": 0,
+            "upload-minutes": 0
+        },
+        {
+            "enable": true,
+            "upload-hour": 0,
+            "upload-minutes": 0
+        },
+        {
+            "enable": false,
+            "upload-hour": 0,
+            "upload-minutes": 0
+        }
+    ],
+    "operation-mode": "stand-alone",
+    "display-mode": "none",
+    "system-time": "2021-06-02 09:02:58",
+    "business-hour": {
+        "open-hour": "09:00",
+        "closed-hour": "23:00"
+    }
+}

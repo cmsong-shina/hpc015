@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "command-type": {
+      "type": "string"
+    },
+    "speed": {
+      "type": "string"
+    },
+    "recording-cycle": {
+      "type": "integer"
+    },
+    "uploading-cycle": {
+      "type": "integer"
+    },
+    "fixed-time-upload": {
+      "type": "array",
+      "items": [
+        {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "boolean"
+            },
+            "upload-hour": {
+              "type": "integer"
+            },
+            "upload-minutes": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enable",
+            "upload-hour",
+            "upload-minutes"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "boolean"
+            },
+            "upload-hour": {
+              "type": "integer"
+            },
+            "upload-minutes": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enable",
+            "upload-hour",
+            "upload-minutes"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "boolean"
+            },
+            "upload-hour": {
+              "type": "integer"
+            },
+            "upload-minutes": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enable",
+            "upload-hour",
+            "upload-minutes"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "boolean"
+            },
+            "upload-hour": {
+              "type": "integer"
+            },
+            "upload-minutes": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enable",
+            "upload-hour",
+            "upload-minutes"
+          ]
+        }
+      ]
+    },
+    "operation-mode": {
+      "type": "string"
+    },
+    "display-mode": {
+      "type": "string"
+    },
+    "system-time": {
+      "type": "string"
+    },
+    "business-hour": {
+      "type": "object",
+      "properties": {
+        "open-hour": {
+          "type": "string"
+        },
+        "closed-hour": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "open-hour",
+        "closed-hour"
+      ]
+    }
+  },
+  "required": [
+    "command-type",
+    "speed",
+    "recording-cycle",
+    "uploading-cycle",
+    "fixed-time-upload",
+    "operation-mode",
+    "display-mode",
+    "system-time",
+    "business-hour"
+  ]
+}

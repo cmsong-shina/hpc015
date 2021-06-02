@@ -20,10 +20,8 @@ const (
 	handler_path = "/cs"
 )
 
-// set your own configuration
+// Implement your own configuration provider.
 func obtainCog() hpc015.Configuration {
-	now := time.Now()
-
 	return hpc015.Configuration{
 		// CommandType
 		// Speed
@@ -33,15 +31,15 @@ func obtainCog() hpc015.Configuration {
 		// UploadClock
 		// Model
 		// DisableType
-		SystemTime: &now,
-		// OpenClock
-		// CloseClock
+		SystemTime: time.Now(),
+		OpenClock:  time.Date(0, 0, 0, 0, 0, 0, 0, time.Local),
+		CloseClock: time.Date(0, 0, 0, 0, 0, 0, 0, time.Local),
 	}
 }
 
 // run http server
 func main() {
-	log.Println("server is running on:", server_host+handler_path)
+	log.Println("- server is running on:", server_host+handler_path)
 	http.HandleFunc(handler_path, hpc015Handler)
 	log.Fatal(http.ListenAndServe(server_host, nil))
 }
@@ -51,6 +49,7 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 	bin, _ := ioutil.ReadAll(req.Body)
 
 	requestSchema, _ := hpc015.NewRequestSchema(string(bin))
+	fmt.Println()
 	log.Println("> request from:", req.RemoteAddr, string(bin))
 
 	switch requestSchema.Cmd {
@@ -74,7 +73,7 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 		// response
 		bin, err := setResp.Binary()
 		if err != nil {
-			log.Println("failed to convert binary:", err.Error())
+			log.Println("! failed to convert binary:", err.Error())
 			return
 		}
 		resp := fmt.Sprintf("result=%X", bin)
@@ -85,9 +84,24 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 	case "cache":
 		// device will send cache request when they got respose about getsetting correctly
 
-		// we can use Status within cache command
-		_ = requestSchema.Status
+		cacheReq, err := hpc015.NewCacheRequest(requestSchema)
+		if err != nil {
+			log.Println("! failed to convert binary:", err.Error())
+			return
+		}
 
-		// cache can hold multiple data fields
+		//
+		cacheResp := cacheReq.Response(hpc015.OK, requestSchema.Flag, obtainCog())
+
+		bin, err := cacheResp.Binary()
+		if err != nil {
+			log.Println("! failed to convert binary:", err.Error())
+			return
+		}
+		resp := fmt.Sprintf("result=%X", bin)
+		log.Println("< response with:", resp)
+		w.Write([]byte(resp))
+
+		return
 	}
 }

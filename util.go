@@ -10,6 +10,10 @@ import (
 	"strconv"
 )
 
+func reverseU16(flag uint16) uint16 {
+	return ((flag & 0xFF) << 8) | ((flag & 0xFF00) >> 8)
+}
+
 func readU8(s string) (string, uint8, error) {
 	if len(s) < 1 {
 		return s, 0, fmt.Errorf("failed to read uint8: length must be 1 byte, but came %d byte", len(s))
