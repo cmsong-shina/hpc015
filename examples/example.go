@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/cmsong-shina/hpc015"
-	"github.com/kr/pretty"
 )
 
 // Same path as you configured on 192.168.8.1(device AP mode) -> SET NET -> SERVER
@@ -21,6 +20,11 @@ import (
 const (
 	server_host  = ":8888"
 	handler_path = "/cs"
+)
+
+// variable for count
+var (
+	counter = hpc015.Counter(2)
 )
 
 // Implement your own configuration provider.
@@ -132,13 +136,12 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 	bin, _ := ioutil.ReadAll(req.Body)
 
 	fmt.Println()
+	log.Println("> request from:", req.RemoteAddr, string(bin))
 	requestSchema, err := hpc015.NewRequestSchema(string(bin))
 	if err != nil {
 		log.Println("! failed to parse RequestSchema:", err.Error())
 		return
 	}
-
-	log.Println("> request from:", req.RemoteAddr, string(bin))
 
 	switch requestSchema.Cmd {
 	case "getsetting":
@@ -196,26 +199,35 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 	case "cache":
 		// device will send cache request when they got respose about getsetting correctly
 
+		// create cache request
 		cacheReq, err := hpc015.NewCacheRequest(requestSchema)
 		if err != nil {
 			log.Println("! failed to parse CacheRequest:", err.Error())
 			return
 		}
 
-		pretty.Println("cache request:", cacheReq)
-
-		//
+		// create cache response
 		cacheResp := cacheReq.Response(hpc015.OK, requestSchema.Flag, obtainCog())
 
+		// send cache response
 		bin, err := cacheResp.Binary()
 		if err != nil {
 			log.Println("! failed to convert binary:", err.Error())
 			return
 		}
 		resp := fmt.Sprintf("result=%X", bin)
+		_, err = w.Write([]byte(resp))
+		if err != nil {
+			log.Println("! failed to send cache response:", err.Error())
+			return
+		}
 		log.Println("< response with:", resp)
-		w.Write([]byte(resp))
 
+		// if send successfully, process event
+		for _, data := range cacheReq.Data {
+			counter.Count(data)
+		}
+		fmt.Println("--------current:", counter.Get())
 		return
 	}
 }
