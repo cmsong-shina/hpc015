@@ -104,7 +104,7 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 		return
 
 	case "cache":
-		// device will send cache request when they got respose about getsetting correctly
+		// device will send cache request after they got response about getsetting correctly
 
 		// create cache request
 		cacheReq, err := hpc015.NewCacheRequest(requestSchema)
