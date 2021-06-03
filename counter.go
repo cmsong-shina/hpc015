@@ -8,8 +8,12 @@ import (
 
 // counter help counting
 //
-// due to sometime hpc015 send duplicated event,
-// counter store recent event within 10 mins, and not count duplicated event.
+// Due to sometime hpc015 send duplicated data,
+// counter store recent data within 10 mins, and not count duplicated data.
+//
+// Use this just for a example,
+// it store all count in one variable, not compitable with multiple device,
+// and not thread safe and can cause panic.
 type counter struct {
 	count       int
 	eventBuffer map[string]eventEntry
@@ -30,7 +34,7 @@ func Counter(initCount int) *counter {
 	return counter
 }
 
-// Count new event
+// Count a data
 func (c *counter) Count(data *CacheData) {
 	buf := make([]byte, 6, 6)
 	buf[0] = data.Year
@@ -66,11 +70,11 @@ func (c *counter) Get() int {
 }
 
 // Set current count
-//
 func (c *counter) Set(count int) {
 	c.count = count
 }
 
+// clearTicker excute clear every 1 min
 func (c *counter) clearTicker() {
 	t := time.NewTicker(time.Duration(time.Minute))
 	for range t.C {
@@ -90,7 +94,7 @@ func (c *counter) clear() {
 		}
 	}
 
-	if enableDebugMessage {
+	if enableDebugMessage && deletedEntry != 0 {
 		fmt.Printf("- clear: %d deleted, %d remains\n", deletedEntry, len(c.eventBuffer))
 	}
 }

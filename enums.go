@@ -27,7 +27,9 @@ func (m TimeVerifyMode) String() string {
 	return timeVerifyModeString[m]
 }
 
-// Operation mode
+// NetworkType
+//
+// In manual, written as `Model`
 type NetworkType byte
 
 const (
@@ -44,6 +46,10 @@ func (m NetworkType) String() string {
 	return networkTypeString[m]
 }
 
+// RespondingType represent whether configuration changed or not.
+//
+// Usually not to need use this type directly,
+// `SetConfiguration()` will set this.
 type RespondingType byte
 
 const (
@@ -60,6 +66,7 @@ func (m RespondingType) String() string {
 	return respondingTypeString[m-4]
 }
 
+// Speed represent Equipment detects speed.
 type Speed byte
 
 const (
@@ -78,6 +85,7 @@ func (m Speed) String() string {
 
 // Display type
 //
+// In manual, written as `Disable Type`
 //  0x00 the counting is not displayed on the screen.
 //  0x01 display total amount
 //  0x02 display bilateral
@@ -99,9 +107,9 @@ func (m DisplayType) String() string {
 	return displayTypeString[m]
 }
 
+// AnswerType represent whether status of cache response.
 type AnswerType byte
 
-// AnswerType represent wethere upload is failed or not
 const (
 	Failed AnswerType = iota
 	OK

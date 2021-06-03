@@ -116,7 +116,7 @@ type Configuration struct {
 	Speed                 Speed
 	RecordingCycle        byte // 1 to 225 min, 0 is real-time
 	UploadCycle           byte // 1 to 225 min, 0 is real-time
-	EnableFixedTimeUpload byte // TODO:
+	EnableFixedTimeUpload byte // TODO: Need to implement this feature
 	UploadClock           time.Time
 	NetworkType           NetworkType
 	DisplayType           DisplayType
@@ -558,14 +558,14 @@ func (response GetSettingResponse) Binary() ([]byte, error) {
 //   - 0D Indicates the current remaining capacity of the counter battery, the current remaining capacity is 13%
 //
 type DeviceStatus struct {
-	Version        uint16
+	Version        uint16 // TODO: BigEndian or LittleEndian. Not commented in manual.
 	SerialNumber   uint32
 	Focus          Focus
-	Reserved_1     byte // TODO:
+	Reserved_1     byte // TODO: WTF
 	TransmitterBAT byte
 	CounterBAT     byte
 	Charge         Charge
-	Reserved_2     byte
+	Reserved_2     byte   // TODO: WTF
 	Crc16          uint16 // BigEndian
 }
 
