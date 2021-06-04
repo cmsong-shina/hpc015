@@ -27,3 +27,5 @@
 
 .vscode/*
 examples/__debug_bin
+examples/examples
+examples/hpc015.txt
