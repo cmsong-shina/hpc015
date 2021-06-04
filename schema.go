@@ -129,8 +129,20 @@ type Configuration struct {
 	CloseClock            time.Time
 }
 
-func (data *Configuration) fromRequestFormat() {
-
+// Default configuration
+func Default() *Configuration {
+	return &Configuration{
+		TimeVerifyMode:        Both,
+		Speed:                 Low,
+		RecordingCycle:        0,
+		UploadCycle:           0,
+		EnableFixedTimeUpload: 0,
+		NetworkType:           Online,
+		DisplayType:           Unidirectinal,
+		SystemTime:            time.Now(),
+		OpenClock:             time.Date(1, 1, 1, 0, 0, 0, 0, time.Local),
+		CloseClock:            time.Date(1, 1, 1, 23, 59, 0, 0, time.Local),
+	}
 }
 
 type GetSettingRequest struct {
