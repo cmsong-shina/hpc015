@@ -62,34 +62,52 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 		// new response based on request
 		setResp := setReq.Response(requestSchema.Flag)
 
-		// (optional) get current configuration
-		conf := setResp.GetConfiguration()
-		fmt.Printf("- old TimeVerifyMode: %v\n", conf.TimeVerifyMode)
-		fmt.Printf("- old Speed: %v\n", conf.Speed)
-		fmt.Printf("- old RecordingCycle: %v\n", conf.RecordingCycle)
-		fmt.Printf("- old UploadCycle: %v\n", conf.UploadCycle)
-		fmt.Printf("- old EnableFixedTimeUpload: %v\n", conf.EnableFixedTimeUpload)
-		fmt.Printf("- old UploadClock: %v\n", conf.UploadClock)
-		fmt.Printf("- old NetworkType: %v\n", conf.NetworkType)
-		fmt.Printf("- old DisplayType: %v\n", conf.DisplayType)
-		fmt.Printf("- old SystemTime: %v\n", conf.SystemTime)
-		fmt.Printf("- old OpenClock: %v\n", conf.OpenClock)
-		fmt.Printf("- old CloseClock: %v\n", conf.CloseClock)
-
+		// (optional) when you want to manage configuration
 		{
+			// (optional) get current configuration
+			oldConf := setResp.GetConfiguration()
+			fmt.Printf("- old TimeVerifyMode: %v\n", oldConf.TimeVerifyMode)
+			fmt.Printf("- old Speed: %v\n", oldConf.Speed)
+			fmt.Printf("- old RecordingCycle: %v\n", oldConf.RecordingCycle)
+			fmt.Printf("- old UploadCycle: %v\n", oldConf.UploadCycle)
+			fmt.Printf("- old EnableFixedTimeUpload: %v\n", oldConf.EnableFixedTimeUpload)
+			fmt.Printf("- old UploadClock: %v\n", oldConf.UploadClock)
+			fmt.Printf("- old NetworkType: %v\n", oldConf.NetworkType)
+			fmt.Printf("- old DisplayType: %v\n", oldConf.DisplayType)
+			fmt.Printf("- old SystemTime: %v\n", oldConf.SystemTime)
+			fmt.Printf("- old OpenClock: %v\n", oldConf.OpenClock)
+			fmt.Printf("- old CloseClock: %v\n", oldConf.CloseClock)
+
 			// (optional) apply new configuration
 			//
 			// DO NOT change configuration every time.
 			// When you modify configuration, device send request to confirmation,
 			// and if you change system time(for example) again, device send confirmation again. It is loop.
 			//
-			// in this case, we apply configuration when systemtime difference more than 10 minutes.
+			// in this case, we apply configuration when systemtime difference more than 5 minutes.
 
-			duration := conf.SystemTime.Sub(time.Now())
-			if math.Abs(duration.Minutes()) > 5 {
-				conf.SystemTime = time.Now()
+			baseConf := obtainConf()
+
+			timeDiff := oldConf.SystemTime.Sub(baseConf.SystemTime)
+			if math.Abs(timeDiff.Minutes()) > 5 {
+				oldConf.SystemTime = baseConf.SystemTime
 			}
-			setResp.SetConfiguration(*conf)
+			oldConf.TimeVerifyMode = baseConf.TimeVerifyMode
+			oldConf.Speed = baseConf.Speed
+			oldConf.RecordingCycle = baseConf.RecordingCycle
+			oldConf.UploadCycle = baseConf.UploadCycle
+			oldConf.EnableFixedTimeUpload = baseConf.EnableFixedTimeUpload
+			oldConf.UploadClock = baseConf.UploadClock
+			oldConf.NetworkType = baseConf.NetworkType
+			oldConf.DisplayType = baseConf.DisplayType
+			oldConf.OpenClock = baseConf.OpenClock
+			oldConf.CloseClock = baseConf.CloseClock
+
+			_, err := setResp.SetConfiguration(*oldConf)
+			if err != nil {
+				log.Println("! failed to set conf:", err.Error())
+				return
+			}
 		}
 
 		// response
@@ -114,7 +132,7 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 		}
 
 		// create cache response
-		cacheResp := cacheReq.Response(hpc015.OK, requestSchema.Flag, obtainCog())
+		cacheResp := cacheReq.Response(hpc015.OK, requestSchema.Flag, obtainConf())
 
 		// send cache response
 		bin, err := cacheResp.Binary()
@@ -156,17 +174,17 @@ func count_handler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// Implement your own configuration provider.
+// Use hpc015.Default() or implement your own configuration provider.
 // When you write Clock, mind not to set Year/Month/Day as 0.
-func obtainCog() hpc015.Configuration {
+func obtainConf() hpc015.Configuration {
 	return hpc015.Configuration{
-		TimeVerifyMode:        hpc015.Exclude,
-		Speed:                 hpc015.Low,
+		TimeVerifyMode:        hpc015.Both,
+		Speed:                 hpc015.High,
 		RecordingCycle:        0,
 		UploadCycle:           0,
 		EnableFixedTimeUpload: 0,
 		NetworkType:           hpc015.Online,
-		DisplayType:           hpc015.All,
+		DisplayType:           hpc015.Bilateral,
 		SystemTime:            time.Now(),
 		OpenClock:             time.Date(1, 1, 1, 0, 0, 0, 0, time.Local),
 		CloseClock:            time.Date(1, 1, 1, 23, 59, 0, 0, time.Local),
