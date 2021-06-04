@@ -682,7 +682,7 @@ type CacheData struct {
 	Secound byte
 	Focus   Focus
 	DxIn    uint32 // LittleEndian
-	Dxout   uint32 // LittleEndian
+	DxOut   uint32 // LittleEndian
 	Crc16   uint16 // BigEndian
 }
 

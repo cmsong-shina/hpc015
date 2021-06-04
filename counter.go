@@ -56,7 +56,7 @@ func (c *counter) Count(data *CacheData) *eventEntry {
 		time.Now(),
 		time.Date(int(data.Year)+2000, time.Month(data.Month), int(data.Day), int(data.Hour), int(data.Minute), int(data.Secound), 0, time.Local),
 		int(data.DxIn),
-		int(data.Dxout),
+		int(data.DxOut),
 	}
 
 	c.mux.Lock()
@@ -70,7 +70,7 @@ func (c *counter) Count(data *CacheData) *eventEntry {
 		return nil
 	}
 	c.in += int(data.DxIn)
-	c.out += int(data.Dxout)
+	c.out += int(data.DxOut)
 	c.eventBuffer[key] = ee
 
 	if EnableDebugMessage {
