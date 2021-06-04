@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+const (
+	simple = "2006-01-02 15:04:05"
+)
+
 // counter help counting
 //
 // counter provide information about number of in/out, occupants
@@ -61,7 +65,7 @@ func (c *counter) Count(data *CacheData) *eventEntry {
 	_, ok := c.eventBuffer[key]
 	if ok {
 		if EnableDebugMessage {
-			fmt.Printf("- duplicated(%s)\n", ee.EventTime.Format("2006-01-02 15:04:05"))
+			fmt.Printf("- duplicated(%s)\n", ee.EventTime.Format(simple))
 		}
 		return nil
 	}
@@ -70,7 +74,7 @@ func (c *counter) Count(data *CacheData) *eventEntry {
 	c.eventBuffer[key] = ee
 
 	if EnableDebugMessage {
-		fmt.Printf("- summary(%v): {in: %d, out: %d, current: %d}\n", ee.EventTime.Format("2006-01-02 15:04:05"), ee.DxIn, ee.DxOut, c.GetOccupants())
+		fmt.Printf("- summary(%v): {in: %d, out: %d, current: %d}\n", ee.EventTime.Format(simple), ee.DxIn, ee.DxOut, c.GetOccupants())
 	}
 	return ee
 }
