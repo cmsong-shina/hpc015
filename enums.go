@@ -2,7 +2,7 @@ package hpc015
 
 // TimeVerifyMode
 //
-// In manual, written as `Commond Type`
+// In manual, written as `Commond Type`, command type of requesting for data:
 //  0x00 exclude the verification hours and business hours
 //  0x01 include the time of verifying the system
 //  0x02 include the time of verifying the business hours
@@ -93,13 +93,13 @@ type DisplayType byte
 
 const (
 	None DisplayType = iota
-	All
+	Unidirectinal
 	Bilateral
 )
 
 var displayTypeString = []string{
 	"None",
-	"All",
+	"Unidirectinal",
 	"Bilateral",
 }
 
