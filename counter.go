@@ -3,31 +3,33 @@ package hpc015
 import (
 	"fmt"
 	"math"
+	"sync"
 	"time"
 )
 
 // counter help counting
 //
+// counter provide information about number of in/out, occupants
+//
 // Due to sometime hpc015 send duplicated data,
 // counter store recent data within 10 mins, and not count duplicated data.
 //
 // Use this just for a example,
-// it store all count in one variable, not compitable with multiple device,
-// and not thread safe and can cause panic.
+// it store all count in one variable, not compitable with multiple device.
 type counter struct {
-	count       int
-	eventBuffer map[string]eventEntry
-	// mux         *sync.Mutex
+	in          int
+	out         int
+	eventBuffer map[string]*eventEntry
+	mux         *sync.Mutex
 }
 
 // Counter create new counter
 //
 // It run a go routine, which clear old events
-func Counter(initCount int) *counter {
+func Counter() *counter {
 	counter := &counter{
-		count:       initCount,
-		eventBuffer: make(map[string]eventEntry),
-		// mux:         &sync.Mutex{},
+		eventBuffer: make(map[string]*eventEntry),
+		mux:         &sync.Mutex{},
 	}
 	go counter.clearTicker()
 
@@ -35,7 +37,8 @@ func Counter(initCount int) *counter {
 }
 
 // Count a data
-func (c *counter) Count(data *CacheData) {
+// If data is duplicated, return nil, Otherwise return eventEntry.
+func (c *counter) Count(data *CacheData) *eventEntry {
 	buf := make([]byte, 6, 6)
 	buf[0] = data.Year
 	buf[1] = data.Month
@@ -44,34 +47,47 @@ func (c *counter) Count(data *CacheData) {
 	buf[4] = data.Minute
 	buf[5] = data.Secound
 
-	k := string(buf)
-
-	_, ok := c.eventBuffer[k]
-	if ok {
-		if enableDebugMessage {
-			fmt.Printf("- duplicated event: %d:%d:%d\n", buf[3], buf[4], buf[5])
-		}
-		return
-	}
-
-	c.count += int(data.DxIn)
-	c.count -= int(data.Dxout)
-
-	c.eventBuffer[k] = eventEntry{
+	key := string(buf)
+	ee := &eventEntry{
 		time.Now(),
+		time.Date(int(data.Year)+2000, time.Month(data.Month), int(data.Day), int(data.Hour), int(data.Minute), int(data.Secound), 0, time.Local),
 		int(data.DxIn),
 		int(data.Dxout),
 	}
+
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	_, ok := c.eventBuffer[key]
+	if ok {
+		if EnableDebugMessage {
+			fmt.Printf("- duplicated(%s)\n", ee.EventTime.Format("2006-01-02 15:04:05"))
+		}
+		return nil
+	}
+	if EnableDebugMessage {
+		fmt.Printf("- summary(%v): {in: %d, out: %d, current: %d}\n", ee.EventTime.Format("2006-01-02 15:04:05"), ee.DxIn, ee.DxOut, c.GetOccupants())
+	}
+	c.in += int(data.DxIn)
+	c.out += int(data.Dxout)
+	c.eventBuffer[key] = ee
+	return ee
 }
 
-// Get current count
-func (c *counter) Get() int {
-	return c.count
+// GetOccupants current count
+func (c *counter) GetOccupants() int {
+	return c.in - c.out
+}
+
+// GetInOut
+func (c *counter) GetInOut() (int, int) {
+	return c.in, c.out
 }
 
 // Set current count
-func (c *counter) Set(count int) {
-	c.count = count
+func (c *counter) Set(num int) {
+	c.in = num
+	c.out = 0
 }
 
 // clearTicker excute clear every 1 min
@@ -87,6 +103,9 @@ func (c *counter) clear() {
 	deletedEntry := 0
 	now := time.Now()
 
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
 	for k, e := range c.eventBuffer {
 		if math.Abs(e.Created.Sub(now).Minutes()) > 10 {
 			delete(c.eventBuffer, k)
@@ -94,13 +113,14 @@ func (c *counter) clear() {
 		}
 	}
 
-	if enableDebugMessage && deletedEntry != 0 {
+	if EnableDebugMessage && deletedEntry != 0 {
 		fmt.Printf("- clear: %d deleted, %d remains\n", deletedEntry, len(c.eventBuffer))
 	}
 }
 
 type eventEntry struct {
-	Created time.Time
-	DxIn    int
-	Dxout   int
+	Created   time.Time
+	EventTime time.Time
+	DxIn      int
+	DxOut     int
 }

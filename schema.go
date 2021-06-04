@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	enableDebugMessage = true
+	EnableDebugMessage = true
 )
 
 // RequestSchema basic form of request, it just hold bunch of raw data.
@@ -383,7 +383,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	original := response.GetConfiguration()
 
 	if original.TimeVerifyMode != cog.TimeVerifyMode {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf("- configuration changed: TimeVerifyMode: %v -> %v\n", response.TimeVerifyMode, cog.TimeVerifyMode)
 		}
 		response.TimeVerifyMode = cog.TimeVerifyMode
@@ -391,7 +391,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	}
 
 	if original.Speed != cog.Speed {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf("- configuration changed: Speed: %v -> %v\n", response.Speed, cog.Speed)
 		}
 		response.Speed = cog.Speed
@@ -399,7 +399,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	}
 
 	if original.RecordingCycle != cog.RecordingCycle {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf("- configuration changed: RecordingCycle: %v -> %v\n", response.RecordingCycle, cog.RecordingCycle)
 		}
 		response.RecordingCycle = cog.RecordingCycle
@@ -407,7 +407,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	}
 
 	if original.UploadCycle != cog.UploadCycle {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf("- configuration changed: UploadCycle: %v -> %v\n", response.UploadCycle, cog.UploadCycle)
 		}
 		response.UploadCycle = cog.UploadCycle
@@ -415,7 +415,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	}
 
 	if original.EnableFixedTimeUpload != cog.EnableFixedTimeUpload {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf("- configuration changed: EnableFixedTimeUpload: %v -> %v\n", response.FixedTimeUpload, cog.EnableFixedTimeUpload)
 		}
 		response.FixedTimeUpload = cog.EnableFixedTimeUpload
@@ -430,7 +430,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	// }
 
 	if original.NetworkType != cog.NetworkType {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf("- configuration changed: NetworkType: %v -> %v\n", response.NetworkType, cog.NetworkType)
 		}
 		response.NetworkType = cog.NetworkType
@@ -438,7 +438,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	}
 
 	if original.DisplayType != cog.DisplayType {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf("- configuration changed: DisplayType: %v -> %v\n", response.DisplayType, cog.DisplayType)
 		}
 		response.DisplayType = cog.DisplayType
@@ -446,7 +446,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	}
 
 	if !equalTime(original.SystemTime, cog.SystemTime) {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf(
 				"- configuration changed: SystemTime: %v-%v-%v %v:%v:%v -> %v-%v-%v %v:%v:%v\n",
 				response.Year,
@@ -473,7 +473,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	}
 
 	if !equalClockOmitSec(original.OpenClock, cog.OpenClock) {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf(
 				"- configuration changed: OpenClock: %v:%v -> %v:%v\n",
 				response.OpenHour,
@@ -488,7 +488,7 @@ func (response *GetSettingResponse) SetConfiguration(cog Configuration) (bool, e
 	}
 
 	if !equalClockOmitSec(original.CloseClock, cog.CloseClock) {
-		if enableDebugMessage {
+		if EnableDebugMessage {
 			fmt.Printf(
 				"- configuration changed: CloseClock: %v:%v -> %v:%v\n",
 				response.CloseHour,

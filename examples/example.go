@@ -25,7 +25,7 @@ const (
 
 // variable for count
 var (
-	counter = hpc015.Counter(0)
+	counter = hpc015.Counter()
 )
 
 // run http server
@@ -84,7 +84,7 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 			// When you modify configuration, device send request to confirmation,
 			// and if you change system time(for example) again, device send confirmation again. It is loop.
 			//
-			// in this case, we apply configuration when systemtime difference more than 5 minutes.
+			// in this case, we apply SystemTime when time difference more than 5 minutes.
 
 			baseConf := obtainConf()
 
@@ -152,7 +152,6 @@ func hpc015Handler(w http.ResponseWriter, req *http.Request) {
 		for _, data := range cacheReq.Data {
 			counter.Count(data)
 		}
-		fmt.Println("--------current:", counter.Get())
 		return
 	}
 }
@@ -161,7 +160,7 @@ func count_handler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	switch req.Method {
 	case http.MethodGet:
-		w.Write([]byte(strconv.FormatInt(int64(counter.Get()), 10)))
+		w.Write([]byte(strconv.FormatInt(int64(counter.GetOccupants()), 10)))
 
 	case http.MethodPost:
 		bin, _ := ioutil.ReadAll(req.Body)
