@@ -65,12 +65,13 @@ func (c *counter) Count(data *CacheData) *eventEntry {
 		}
 		return nil
 	}
-	if EnableDebugMessage {
-		fmt.Printf("- summary(%v): {in: %d, out: %d, current: %d}\n", ee.EventTime.Format("2006-01-02 15:04:05"), ee.DxIn, ee.DxOut, c.GetOccupants())
-	}
 	c.in += int(data.DxIn)
 	c.out += int(data.Dxout)
 	c.eventBuffer[key] = ee
+
+	if EnableDebugMessage {
+		fmt.Printf("- summary(%v): {in: %d, out: %d, current: %d}\n", ee.EventTime.Format("2006-01-02 15:04:05"), ee.DxIn, ee.DxOut, c.GetOccupants())
+	}
 	return ee
 }
 
