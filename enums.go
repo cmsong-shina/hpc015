@@ -1,5 +1,7 @@
 package hpc015
 
+import "strconv"
+
 // TimeVerifyMode
 //
 // In manual, written as `Commond Type`, command type of requesting for data:
@@ -24,7 +26,10 @@ var timeVerifyModeString = []string{
 }
 
 func (m TimeVerifyMode) String() string {
-	return timeVerifyModeString[m]
+	if Exclude <= m && m <= Both {
+		return timeVerifyModeString[m]
+	}
+	return "%!Weekday(" + strconv.FormatUint(uint64(m), 10) + ")"
 }
 
 // NetworkType
@@ -43,7 +48,10 @@ var networkTypeString = []string{
 }
 
 func (m NetworkType) String() string {
-	return networkTypeString[m]
+	if Online <= m && m <= StandAlone {
+		return networkTypeString[m]
+	}
+	return "%!NetworkType(" + strconv.FormatUint(uint64(m), 10) + ")"
 }
 
 // RespondingType represent whether configuration changed or not.
@@ -63,7 +71,10 @@ var respondingTypeString = []string{
 }
 
 func (m RespondingType) String() string {
-	return respondingTypeString[m-4]
+	if NewParameterValue <= m && m <= Confirmation {
+		return respondingTypeString[m-4]
+	}
+	return "%!RespondingType(" + strconv.FormatUint(uint64(m), 10) + ")"
 }
 
 // Speed represent Equipment detects speed.
@@ -80,7 +91,10 @@ var speedString = []string{
 }
 
 func (m Speed) String() string {
-	return speedString[m]
+	if Low <= m && m <= High {
+		return speedString[m]
+	}
+	return "%!Speed(" + strconv.FormatUint(uint64(m), 10) + ")"
 }
 
 // Display type
@@ -104,7 +118,10 @@ var displayTypeString = []string{
 }
 
 func (m DisplayType) String() string {
-	return displayTypeString[m]
+	if None <= m && m <= Bilateral {
+		return displayTypeString[m]
+	}
+	return "%!DisplayType(" + strconv.FormatUint(uint64(m), 10) + ")"
 }
 
 // AnswerType represent whether status of cache response.
@@ -121,7 +138,10 @@ var answerType = []string{
 }
 
 func (m AnswerType) String() string {
-	return answerType[m]
+	if Failed <= m && m <= OK {
+		return answerType[m]
+	}
+	return "%!AnswerType(" + strconv.FormatUint(uint64(m), 10) + ")"
 }
 
 type Focus byte
@@ -137,7 +157,10 @@ var focusString = []string{
 }
 
 func (m Focus) String() string {
-	return focusString[m]
+	if Focused <= m && m <= FocusOut {
+		return focusString[m]
+	}
+	return "%!Focus(" + strconv.FormatUint(uint64(m), 10) + ")"
 }
 
 type Charge byte
@@ -155,5 +178,8 @@ var cargeString = []string{
 }
 
 func (m Charge) String() string {
-	return cargeString[m]
+	if NotCharged == m || m == BeingCharged {
+		return cargeString[m]
+	}
+	return "%!Charge(" + strconv.FormatUint(uint64(m), 10) + ")"
 }

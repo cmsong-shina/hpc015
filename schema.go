@@ -590,8 +590,6 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 		return nil, fmt.Errorf("failed to parse GetSettingRequest: length must be 53 byte, but came %d byte", len(data))
 	}
 
-	var status = new(DeviceStatus)
-
 	data, version, err := readU16(data)
 	if err != nil {
 		return nil, err
@@ -631,6 +629,7 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 		return nil, err
 	}
 
+	var status = new(DeviceStatus)
 	status.Version = version
 	status.SerialNumber = serialNumber
 	status.Focus = Focus(focus)
