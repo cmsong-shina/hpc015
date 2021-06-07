@@ -575,10 +575,10 @@ func (response GetSettingResponse) Binary() ([]byte, error) {
 //
 type DeviceStatus struct {
 	Version        uint16 // TODO: BigEndian or LittleEndian. Not commented in manual.
-	SerialNumber   uint32
+	SerialNumber   uint32 // Little Endian
 	Focus          Focus
-	Reserved_1     byte // TODO: WTF
 	TransmitterBAT byte
+	Reserved_1     byte // TODO: WTF
 	CounterBAT     byte
 	Charge         Charge
 	Reserved_2     byte   // TODO: WTF
