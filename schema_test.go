@@ -319,7 +319,7 @@ func TestNewDeviceStatus(t *testing.T) {
 			args: args{"010142AE51520156000D0001E6A7"},
 			want: &DeviceStatus{
 				Version:        0x0101,
-				SerialNumber:   0x42AE5152,
+				SerialNumber:   []byte{0x42, 0xAE, 0x51, 0x52},
 				Focus:          0x01,
 				TransmitterBAT: 0x56,
 				Reserved_1:     0x00,

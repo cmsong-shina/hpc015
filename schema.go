@@ -575,7 +575,7 @@ func (response GetSettingResponse) Binary() ([]byte, error) {
 //
 type DeviceStatus struct {
 	Version        uint16 // TODO: BigEndian or LittleEndian. Not commented in manual.
-	SerialNumber   uint32 // Little Endian
+	SerialNumber   []byte // Little Endian
 	Focus          Focus
 	TransmitterBAT byte
 	Reserved_1     byte // TODO: WTF
@@ -596,7 +596,7 @@ func NewDeviceStatus(data string) (*DeviceStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, serialNumber, err := readU32(data)
+	data, serialNumber, err := readBytes(data, 4)
 	if err != nil {
 		return nil, err
 	}
